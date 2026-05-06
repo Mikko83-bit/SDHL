@@ -1,7 +1,10 @@
 import streamlit as st
+import pandas as pd
 
 st.set_page_config(layout="wide")
 
-st.title("SDHL Dashboard")
+st.title("🏒 SDHL Dashboard")
 
-st.write("Main app working")
+df = pd.read_excel("SDHL_Player_Value_Model.xlsx")
+
+st.write(df.head())
