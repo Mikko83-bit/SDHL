@@ -22,3 +22,11 @@ fig = px.scatter(
     y="Net xG /60"
 )
 st.plotly_chart(fig)
+fig = px.scatter(
+    filtered_df,
+    x="Creation Score",
+    y="Net xG /60",
+    color="Position"
+)
+
+st.plotly_chart(fig)
