@@ -30,3 +30,12 @@ fig = px.scatter(
 )
 
 st.plotly_chart(fig)
+fig = px.scatter(
+    filtered_df,
+    x="Creation Score",
+    y="Net xG /60",
+    color="Position",
+    hover_name="Player"
+)
+
+st.plotly_chart(fig)
