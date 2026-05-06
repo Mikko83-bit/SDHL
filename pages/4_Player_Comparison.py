@@ -18,7 +18,24 @@ st.title("⚔️ Player Comparison")
 # LOAD DATA
 # =========================
 
-df = pd.read_excel("SDHL_Player_Value_Model.xlsx")
+df_value = pd.read_excel(
+    "SDHL_Player_Value_Model.xlsx"
+)
+
+df_gamescore = pd.read_excel(
+    "SDHL_ZScore_GameScore_Final.xlsx"
+)
+
+# =========================
+# MERGE DATA
+# =========================
+
+df = pd.merge(
+    df_value,
+    df_gamescore,
+    on=["Player", "Team", "Position"],
+    how="inner"
+)
 
 # =========================
 # CLEAN DATA
@@ -30,7 +47,9 @@ numeric_columns = [
     "Creation Score",
     "Shot Quality",
     "Puck Control",
-    "Net xG /60"
+    "Net xG /60",
+    "Game Score",
+    "Adjusted Game Score"
 ]
 
 for col in numeric_columns:
@@ -112,14 +131,14 @@ p1 = df[df["Player"] == player1].iloc[0]
 p2 = df[df["Player"] == player2].iloc[0]
 
 # =========================
-# COLORS
+# TEAM COLORS
 # =========================
 
 color1 = team_colors.get(team1, "#00BFFF")
 color2 = team_colors.get(team2, "#FF4C4C")
 
 # =========================
-# METRICS
+# RADAR METRICS
 # =========================
 
 metrics = [
@@ -127,7 +146,8 @@ metrics = [
     "Shot Quality",
     "Puck Control",
     "Net xG /60",
-    "Value"
+    "Game Score",
+    "Adjusted Game Score"
 ]
 
 # =========================
@@ -168,7 +188,7 @@ fig.update_layout(
         bgcolor="#111111",
         radialaxis=dict(
             visible=True,
-            range=[0, 10],
+            range=[0, 15],
             gridcolor="gray",
             linecolor="gray",
             tickfont=dict(color="white")
@@ -197,7 +217,7 @@ st.plotly_chart(
 )
 
 # =========================
-# PLAYER INFO
+# PLAYER INFORMATION
 # =========================
 
 st.subheader("📋 Player Information")
@@ -206,20 +226,26 @@ info_col1, info_col2 = st.columns(2)
 
 with info_col1:
     st.markdown(f"### {player1}")
+
     st.write({
         "Team": p1["Team"],
         "Position": p1["Position"],
         "Value": round(p1["Value"], 2),
-        "Value %": round(p1["Value_pct"], 1)
+        "Value %": round(p1["Value_pct"], 1),
+        "Game Score": round(p1["Game Score"], 2),
+        "Adjusted GS": round(p1["Adjusted Game Score"], 2)
     })
 
 with info_col2:
     st.markdown(f"### {player2}")
+
     st.write({
         "Team": p2["Team"],
         "Position": p2["Position"],
         "Value": round(p2["Value"], 2),
-        "Value %": round(p2["Value_pct"], 1)
+        "Value %": round(p2["Value_pct"], 1),
+        "Game Score": round(p2["Game Score"], 2),
+        "Adjusted GS": round(p2["Adjusted Game Score"], 2)
     })
 
 # =========================
@@ -228,10 +254,27 @@ with info_col2:
 
 st.subheader("📈 Comparison Table")
 
+comparison_metrics = [
+    "Creation Score",
+    "Shot Quality",
+    "Puck Control",
+    "Net xG /60",
+    "Game Score",
+    "Adjusted Game Score",
+    "Value",
+    "Value_pct"
+]
+
 comparison_df = pd.DataFrame({
-    "Metric": metrics,
-    player1: [round(p1[m], 2) for m in metrics],
-    player2: [round(p2[m], 2) for m in metrics]
+    "Metric": comparison_metrics,
+    player1: [
+        round(p1[m], 2)
+        for m in comparison_metrics
+    ],
+    player2: [
+        round(p2[m], 2)
+        for m in comparison_metrics
+    ]
 })
 
 st.dataframe(
