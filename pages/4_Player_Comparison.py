@@ -6,8 +6,6 @@ import plotly.graph_objects as go
 # PAGE TITLE
 # =========================
 
-st.set_page_config(layout="wide")
-
 st.title("⚔️ Player Comparison")
 
 # =========================
