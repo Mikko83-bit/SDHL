@@ -24,6 +24,25 @@ st.title("🏒 SDHL Player Value Dashboard")
 df = pd.read_excel("SDHL_Player_Value_Model.xlsx")
 
 # =========================
+# CLEAN DATA
+# =========================
+
+numeric_columns = [
+    "Time on ice",
+    "Value",
+    "Value_pct",
+    "Creation Score",
+    "Shot Quality",
+    "Puck Control",
+    "Net xG /60"
+]
+
+for col in numeric_columns:
+    df[col] = pd.to_numeric(df[col], errors="coerce")
+
+df = df.dropna(subset=numeric_columns)
+
+# =========================
 # SIDEBAR FILTERS
 # =========================
 
@@ -52,7 +71,7 @@ positions = st.sidebar.multiselect(
 # FILTER DATA
 # =========================
 
-df = df[
+filtered_df = df[
     (df["Time on ice"] >= min_toi) &
     (df["Team"].isin(teams)) &
     (df["Position"].isin(positions))
@@ -62,20 +81,23 @@ df = df[
 # TOP METRICS
 # =========================
 
+st.subheader("📈 Overview")
+
 col1, col2, col3 = st.columns(3)
 
 col1.metric(
     "Players",
-    len(df)
+    len(filtered_df)
 )
 
 col2.metric(
     "Average Value",
-    round(df["Value"].mean(), 2)
+    round(filtered_df["Value"].mean(), 2)
 )
 
 top_player = (
-    df.sort_values("Value", ascending=False)
+    filtered_df
+    .sort_values("Value", ascending=False)
     ["Player"]
     .iloc[0]
 )
@@ -92,18 +114,19 @@ col3.metric(
 st.subheader("📊 Player Map")
 
 fig = px.scatter(
-    df,
+    filtered_df,
     x="Creation Score",
     y="Net xG /60",
     color="Position",
-    size="Value",
     hover_name="Player",
-    hover_data=[
-        "Team",
-        "Value",
-        "Shot Quality",
-        "Puck Control"
-    ],
+    hover_data={
+        "Team": True,
+        "Value": ":.2f",
+        "Shot Quality": ":.2f",
+        "Puck Control": ":.2f",
+        "Creation Score": ":.2f",
+        "Net xG /60": ":.2f"
+    },
     title="Creation vs Impact"
 )
 
@@ -123,7 +146,8 @@ st.plotly_chart(
 st.subheader("🔥 Top Players")
 
 top_players = (
-    df.sort_values("Value", ascending=False)
+    filtered_df
+    .sort_values("Value", ascending=False)
     [
         [
             "Player",
@@ -149,11 +173,11 @@ st.subheader("🎯 Player Profile")
 
 player = st.selectbox(
     "Select Player",
-    sorted(df["Player"].unique())
+    sorted(filtered_df["Player"].unique())
 )
 
-player_data = df[
-    df["Player"] == player
+player_data = filtered_df[
+    filtered_df["Player"] == player
 ].iloc[0]
 
 # =========================
@@ -183,27 +207,29 @@ col4.metric(
 )
 
 # =========================
-# PLAYER DETAILS
+# PLAYER DETAILS TABLE
 # =========================
 
-st.subheader("Player Details")
+st.subheader("📋 Player Details")
 
 details = pd.DataFrame({
     "Metric": [
+        "Value",
+        "Value %",
         "Creation Score",
         "Shot Quality",
         "Puck Control",
         "Net xG /60",
-        "Value",
-        "Value %"
+        "Time on ice"
     ],
     "Value": [
+        round(player_data["Value"], 2),
+        round(player_data["Value_pct"], 1),
         round(player_data["Creation Score"], 2),
         round(player_data["Shot Quality"], 2),
         round(player_data["Puck Control"], 2),
         round(player_data["Net xG /60"], 2),
-        round(player_data["Value"], 2),
-        round(player_data["Value_pct"], 1)
+        round(player_data["Time on ice"], 1)
     ]
 })
 
