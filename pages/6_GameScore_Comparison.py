@@ -41,26 +41,23 @@ for col in numeric_columns:
 df = df.dropna(subset=numeric_columns)
 
 # =========================
-# TEAM FILTERS
+# SIDEBAR FILTERS
 # =========================
 
-st.subheader("🏒 Team Selection")
+st.sidebar.header("Filters")
 
 teams = sorted(df["Team"].unique())
 
-col1, col2 = st.columns(2)
+team1 = st.sidebar.selectbox(
+    "Select Team 1",
+    teams
+)
 
-with col1:
-    team1 = st.selectbox(
-        "Select Team 1",
-        teams
-    )
-
-with col2:
-    team2 = st.selectbox(
-        "Select Team 2",
-        teams
-    )
+team2 = st.sidebar.selectbox(
+    "Select Team 2",
+    teams,
+    index=1 if len(teams) > 1 else 0
+)
 
 # =========================
 # PLAYER FILTERS
@@ -74,21 +71,15 @@ players_team2 = sorted(
     df[df["Team"] == team2]["Player"].unique()
 )
 
-st.subheader("👥 Player Selection")
+player1 = st.sidebar.selectbox(
+    "Select Player 1",
+    players_team1
+)
 
-col1, col2 = st.columns(2)
-
-with col1:
-    player1 = st.selectbox(
-        "Select Player 1",
-        players_team1
-    )
-
-with col2:
-    player2 = st.selectbox(
-        "Select Player 2",
-        players_team2
-    )
+player2 = st.sidebar.selectbox(
+    "Select Player 2",
+    players_team2
+)
 
 # =========================
 # PLAYER DATA
@@ -120,7 +111,7 @@ max_value = max(
 ) * 1.15
 
 # =========================
-# RADAR CHART
+# RADAR COMPARISON
 # =========================
 
 st.subheader("📊 Advanced Analytics Radar")
@@ -156,7 +147,7 @@ fig.add_trace(go.Scatterpolar(
 ))
 
 # =========================
-# LAYOUT
+# RADAR LAYOUT
 # =========================
 
 fig.update_layout(
@@ -196,38 +187,76 @@ st.plotly_chart(
 )
 
 # =========================
-# PLAYER INFORMATION
+# PLAYER CARDS
 # =========================
 
-st.subheader("📋 Player Information")
+st.subheader("🏒 Player Cards")
 
-info_col1, info_col2 = st.columns(2)
+card_col1, card_col2 = st.columns(2)
 
-with info_col1:
+# =========================
+# PLAYER 1 CARD
+# =========================
 
-    st.markdown(f"### {player1}")
+with card_col1:
 
-    st.write({
-        "Team": p1["Team"],
-        "Position": p1["Position"],
-        "Game Score": round(p1["Game Score"], 2),
-        "Adjusted GS": round(p1["Adjusted Game Score"], 2),
-        "Goals/60": round(p1["Goals/60"], 2),
-        "xG/60": round(p1["xG/60"], 2)
-    })
+    st.markdown(f"## {player1}")
 
-with info_col2:
+    st.markdown(
+        f"### {p1['Team']} | {p1['Position']}"
+    )
 
-    st.markdown(f"### {player2}")
+    st.metric(
+        "Game Score",
+        round(p1["Game Score"], 2)
+    )
 
-    st.write({
-        "Team": p2["Team"],
-        "Position": p2["Position"],
-        "Game Score": round(p2["Game Score"], 2),
-        "Adjusted GS": round(p2["Adjusted Game Score"], 2),
-        "Goals/60": round(p2["Goals/60"], 2),
-        "xG/60": round(p2["xG/60"], 2)
-    })
+    st.metric(
+        "Adjusted GS",
+        round(p1["Adjusted Game Score"], 2)
+    )
+
+    st.metric(
+        "Goals/60",
+        round(p1["Goals/60"], 2)
+    )
+
+    st.metric(
+        "xG/60",
+        round(p1["xG/60"], 2)
+    )
+
+# =========================
+# PLAYER 2 CARD
+# =========================
+
+with card_col2:
+
+    st.markdown(f"## {player2}")
+
+    st.markdown(
+        f"### {p2['Team']} | {p2['Position']}"
+    )
+
+    st.metric(
+        "Game Score",
+        round(p2["Game Score"], 2)
+    )
+
+    st.metric(
+        "Adjusted GS",
+        round(p2["Adjusted Game Score"], 2)
+    )
+
+    st.metric(
+        "Goals/60",
+        round(p2["Goals/60"], 2)
+    )
+
+    st.metric(
+        "xG/60",
+        round(p2["xG/60"], 2)
+    )
 
 # =========================
 # COMPARISON TABLE
