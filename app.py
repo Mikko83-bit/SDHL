@@ -8,3 +8,11 @@ st.title("🏒 SDHL Dashboard")
 df = pd.read_excel("SDHL_Player_Value_Model.xlsx")
 
 st.write(df.head())
+st.sidebar.header("Filters")
+
+min_toi = st.sidebar.slider(
+    "Minimum TOI",
+    0,
+    800,
+    300
+)
