@@ -16,3 +16,6 @@ min_toi = st.sidebar.slider(
     800,
     300
 )
+filtered_df = df[
+    df["Time on ice"] >= min_toi
+]
