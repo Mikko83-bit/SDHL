@@ -41,22 +41,6 @@ for col in numeric_columns:
 df = df.dropna(subset=numeric_columns)
 
 # =========================
-# TEAM COLORS
-# =========================
-
-team_colors = {
-    "Brynas": "#C9A227",
-    "Lulea/MSSK": "#D72638",
-    "Frolunda": "#1B5E20",
-    "SDE HF": "#1976D2",
-    "MODO": "#7B1FA2",
-    "Djurgarden": "#0D47A1",
-    "Farjestad": "#2E7D32",
-    "Linkoping": "#1565C0",
-    "Skelleftea": "#F57C00"
-}
-
-# =========================
 # TEAM FILTERS
 # =========================
 
@@ -114,13 +98,6 @@ p1 = df[df["Player"] == player1].iloc[0]
 p2 = df[df["Player"] == player2].iloc[0]
 
 # =========================
-# TEAM COLORS
-# =========================
-
-color1 = team_colors.get(team1, "#00BFFF")
-color2 = team_colors.get(team2, "#FF4C4C")
-
-# =========================
 # RADAR METRICS
 # =========================
 
@@ -134,6 +111,15 @@ metrics = [
 ]
 
 # =========================
+# AUTO SCALE
+# =========================
+
+max_value = max(
+    max([p1[m] for m in metrics]),
+    max([p2[m] for m in metrics])
+) * 1.15
+
+# =========================
 # RADAR CHART
 # =========================
 
@@ -141,17 +127,21 @@ st.subheader("📊 Advanced Analytics Radar")
 
 fig = go.Figure()
 
+# PLAYER 1
+
 fig.add_trace(go.Scatterpolar(
     r=[p1[m] for m in metrics],
     theta=metrics,
     fill='toself',
     name=player1,
     line=dict(
-        color=color1,
-        width=3
+        color='#00E5FF',
+        width=4
     ),
-    fillcolor='rgba(0,191,255,0.30)'
+    fillcolor='rgba(0,229,255,0.30)'
 ))
+
+# PLAYER 2
 
 fig.add_trace(go.Scatterpolar(
     r=[p2[m] for m in metrics],
@@ -159,11 +149,15 @@ fig.add_trace(go.Scatterpolar(
     fill='toself',
     name=player2,
     line=dict(
-        color=color2,
-        width=3
+        color='#FF5252',
+        width=4
     ),
-    fillcolor='rgba(255,76,76,0.30)'
+    fillcolor='rgba(255,82,82,0.30)'
 ))
+
+# =========================
+# LAYOUT
+# =========================
 
 fig.update_layout(
     template="plotly_dark",
@@ -171,17 +165,19 @@ fig.update_layout(
         bgcolor="#111111",
         radialaxis=dict(
             visible=True,
-            range=[0, 15],
+            range=[0, max_value],
             gridcolor="gray",
             linecolor="gray",
-            tickfont=dict(color="white")
+            tickfont=dict(
+                color="white"
+            )
         ),
         angularaxis=dict(
             gridcolor="gray",
             linecolor="gray",
             tickfont=dict(
                 color="white",
-                size=12
+                size=13
             )
         )
     ),
@@ -208,6 +204,7 @@ st.subheader("📋 Player Information")
 info_col1, info_col2 = st.columns(2)
 
 with info_col1:
+
     st.markdown(f"### {player1}")
 
     st.write({
@@ -220,6 +217,7 @@ with info_col1:
     })
 
 with info_col2:
+
     st.markdown(f"### {player2}")
 
     st.write({
