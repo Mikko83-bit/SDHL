@@ -237,3 +237,4 @@ st.dataframe(
     details,
     use_container_width=True
 )
+st.write("APP RUNNING")
