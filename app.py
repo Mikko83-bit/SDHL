@@ -30,7 +30,7 @@ df = pd.read_excel("SDHL_Player_Value_Model.xlsx")
 st.sidebar.header("Filters")
 
 min_toi = st.sidebar.slider(
-    "Min Time on Ice",
+    "Minimum Time on Ice",
     0,
     800,
     300
@@ -70,7 +70,7 @@ col1.metric(
 )
 
 col2.metric(
-    "Avg Value",
+    "Average Value",
     round(df["Value"].mean(), 2)
 )
 
@@ -96,14 +96,14 @@ fig = px.scatter(
     x="Creation Score",
     y="Net xG /60",
     color="Position",
+    size="Value",
     hover_name="Player",
     hover_data=[
         "Team",
         "Value",
-        "Goals/60",
-        "Assists/60"
+        "Shot Quality",
+        "Puck Control"
     ],
-    size="Value",
     title="Creation vs Impact"
 )
 
@@ -190,20 +190,20 @@ st.subheader("Player Details")
 
 details = pd.DataFrame({
     "Metric": [
-        "Goals/60",
-        "Assists/60",
-        "xG/60",
+        "Creation Score",
+        "Shot Quality",
         "Puck Control",
-        "Takeaways/60",
-        "Puck losses/60"
+        "Net xG /60",
+        "Value",
+        "Value %"
     ],
     "Value": [
-        round(player_data["Goals/60"], 2),
-        round(player_data["Assists/60"], 2),
-        round(player_data["xG/60"], 2),
+        round(player_data["Creation Score"], 2),
+        round(player_data["Shot Quality"], 2),
         round(player_data["Puck Control"], 2),
-        round(player_data["Takeaways  /60"], 2),
-        round(player_data["Puck losses/60"], 2)
+        round(player_data["Net xG /60"], 2),
+        round(player_data["Value"], 2),
+        round(player_data["Value_pct"], 1)
     ]
 })
 
