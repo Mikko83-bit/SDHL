@@ -32,7 +32,7 @@ numeric_columns = [
     "xG/60",
     "Net xG",
     "Game Score",
-    "Adjusted Game Score"
+    "Time on ice"
 ]
 
 for col in numeric_columns:
@@ -46,7 +46,24 @@ df = df.dropna(subset=numeric_columns)
 
 st.sidebar.header("Filters")
 
-teams = sorted(df["Team"].unique())
+# POSITION FILTER
+
+positions = sorted(df["Position"].unique())
+
+selected_position = st.sidebar.selectbox(
+    "Position",
+    positions
+)
+
+filtered_position_df = df[
+    df["Position"] == selected_position
+]
+
+# TEAM FILTERS
+
+teams = sorted(
+    filtered_position_df["Team"].unique()
+)
 
 team1 = st.sidebar.selectbox(
     "Select Team 1",
@@ -64,11 +81,15 @@ team2 = st.sidebar.selectbox(
 # =========================
 
 players_team1 = sorted(
-    df[df["Team"] == team1]["Player"].unique()
+    filtered_position_df[
+        filtered_position_df["Team"] == team1
+    ]["Player"].unique()
 )
 
 players_team2 = sorted(
-    df[df["Team"] == team2]["Player"].unique()
+    filtered_position_df[
+        filtered_position_df["Team"] == team2
+    ]["Player"].unique()
 )
 
 player1 = st.sidebar.selectbox(
@@ -85,8 +106,13 @@ player2 = st.sidebar.selectbox(
 # PLAYER DATA
 # =========================
 
-p1 = df[df["Player"] == player1].iloc[0]
-p2 = df[df["Player"] == player2].iloc[0]
+p1 = filtered_position_df[
+    filtered_position_df["Player"] == player1
+].iloc[0]
+
+p2 = filtered_position_df[
+    filtered_position_df["Player"] == player2
+].iloc[0]
 
 # =========================
 # RADAR METRICS
@@ -98,7 +124,7 @@ metrics = [
     "xG/60",
     "Net xG",
     "Game Score",
-    "Adjusted Game Score"
+    "Time on ice"
 ]
 
 # =========================
@@ -194,9 +220,7 @@ st.subheader("🏒 Player Cards")
 
 card_col1, card_col2 = st.columns(2)
 
-# =========================
 # PLAYER 1 CARD
-# =========================
 
 with card_col1:
 
@@ -212,11 +236,6 @@ with card_col1:
     )
 
     st.metric(
-        "Adjusted GS",
-        round(p1["Adjusted Game Score"], 2)
-    )
-
-    st.metric(
         "Goals/60",
         round(p1["Goals/60"], 2)
     )
@@ -226,9 +245,12 @@ with card_col1:
         round(p1["xG/60"], 2)
     )
 
-# =========================
+    st.metric(
+        "TOI",
+        round(p1["Time on ice"], 1)
+    )
+
 # PLAYER 2 CARD
-# =========================
 
 with card_col2:
 
@@ -244,11 +266,6 @@ with card_col2:
     )
 
     st.metric(
-        "Adjusted GS",
-        round(p2["Adjusted Game Score"], 2)
-    )
-
-    st.metric(
         "Goals/60",
         round(p2["Goals/60"], 2)
     )
@@ -256,6 +273,11 @@ with card_col2:
     st.metric(
         "xG/60",
         round(p2["xG/60"], 2)
+    )
+
+    st.metric(
+        "TOI",
+        round(p2["Time on ice"], 1)
     )
 
 # =========================
@@ -270,7 +292,7 @@ comparison_metrics = [
     "xG/60",
     "Net xG",
     "Game Score",
-    "Adjusted Game Score"
+    "Time on ice"
 ]
 
 comparison_df = pd.DataFrame({
