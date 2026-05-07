@@ -32,7 +32,79 @@ df["Position"] = (
 )
 
 # =========================
-# PAGE TITLE
+# CREATE PERCENTILES
+# =========================
+
+percentile_metrics = [
+
+    "Goals/60",
+    "Assists/60",
+    "Shots/60",
+    "xG (Expected goals)/60",
+
+    "Pre-shots passes/60",
+    "Passes to the slot/60",
+    "First assist/60",
+
+    "Entries/60",
+    "Entries via stickhandling/60",
+    "Entries via pass/60",
+
+    "Breakouts/60",
+    "Breakouts via stickhandling/60",
+    "Breakouts via pass/60",
+
+    "Takeaways/60",
+    "Takeaways in DZ",
+
+    "Puck touches/60",
+    "Puck control time/60",
+
+    "Puck battles won, %",
+
+    "Opponent's xG when on ice",
+
+    "Net xG (xG player on - opp. team's xG)",
+
+    "Team xG when on ice",
+
+    "CORSI for, %",
+    "Fenwick for, %",
+
+    "Scoring chances - total/60",
+    "Inner slot shots - total/60"
+
+]
+
+for metric in percentile_metrics:
+
+    if metric in df.columns:
+
+        df[metric] = pd.to_numeric(
+            df[metric],
+            errors="coerce"
+        ).fillna(0)
+
+        df[f"{metric} Percentile"] = (
+
+            df[metric]
+            .rank(pct=True) * 100
+
+        )
+
+# REVERSE NEGATIVE METRIC
+
+df["Opponent's xG when on ice Percentile"] = (
+
+    100 -
+
+    df["Opponent's xG when on ice"]
+    .rank(pct=True) * 100
+
+)
+
+# =========================
+# TITLE
 # =========================
 
 st.title("🏒 SDHL Microstats Cards")
@@ -79,7 +151,16 @@ p = filtered_df[
 
 team_logos = {
 
-    "Lulea/MSSK": "images/Lulea.png"
+    "Lulea/MSSK": "images/Lulea.png",
+    "Brynas": "images/Brynas.png",
+    "Djurgarden": "images/Djurgarden.png",
+    "Farjestad": "images/Farjestad.png",
+    "Frolunda": "images/Frolunda.png",
+    "HV71": "images/HV71.png",
+    "Linkoping": "images/Linkoping.png",
+    "MODO": "images/MODO.png",
+    "SDE HF": "images/SDE HF.png",
+    "Skelleftea AIK": "images/Skelleftea AIK.png"
 
 }
 
@@ -95,19 +176,19 @@ def get_color(value):
 
     elif value >= 75:
 
-        return "#2E6DB4"
+        return "#3B82C4"
 
     elif value >= 50:
 
-        return "#9BC7F2"
+        return "#A7D0F2"
 
     elif value >= 30:
 
-        return "#F4B6B6"
+        return "#F7B7B7"
 
     else:
 
-        return "#D94B4B"
+        return "#E63946"
 
 # =========================
 # TILE FUNCTION
@@ -152,7 +233,7 @@ def stat_tile(title, value):
             font-weight:800;
             line-height:1;
         ">
-            {value}
+            {value}%
         </div>
 
     </div>
