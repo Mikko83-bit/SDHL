@@ -18,8 +18,29 @@ st.title("🧠 Game Score Comparison")
 # TEAM LOGOS
 # =========================
 
+logo_size = 110
+
 team_logos = {
-    "Lulea/MSSK": "images/lulea.png"
+
+    "Brynas": "images/Brynas.png",
+
+    "Djurgarden": "images/Djurgarden.png",
+
+    "Farjestad": "images/Farjestad.png",
+
+    "Frolunda": "images/Frolunda.png",
+
+    "HV71": "images/HV71.png",
+
+    "Linkoping": "images/Linkoping.png",
+
+    "Lulea/MSSK": "images/Lulea.png",
+
+    "MODO": "images/MODO.png",
+
+    "SDE HF": "images/SDE HF.png",
+
+    "Skelleftea": "images/Skelleftea AIK.png"
 }
 
 # =========================
@@ -233,16 +254,22 @@ st.subheader("🏒 Player Cards")
 
 card_col1, card_col2 = st.columns(2)
 
+# =========================
 # PLAYER 1 CARD
+# =========================
 
 with card_col1:
+
+    # TEAM LOGO
 
     if p1["Team"] in team_logos:
 
         st.image(
             team_logos[p1["Team"]],
-            width=120
+            width=logo_size
         )
+
+    # PLAYER INFO
 
     st.markdown(
         f"## {player1}"
@@ -263,8 +290,18 @@ with card_col1:
     )
 
     st.metric(
+        "Assists/60",
+        round(p1["Assists/60"], 2)
+    )
+
+    st.metric(
         "xG/60",
         round(p1["xG/60"], 2)
+    )
+
+    st.metric(
+        "Net xG",
+        round(p1["Net xG"], 2)
     )
 
     st.metric(
@@ -272,16 +309,22 @@ with card_col1:
         round(p1["Time on ice"], 1)
     )
 
+# =========================
 # PLAYER 2 CARD
+# =========================
 
 with card_col2:
+
+    # TEAM LOGO
 
     if p2["Team"] in team_logos:
 
         st.image(
             team_logos[p2["Team"]],
-            width=120
+            width=logo_size
         )
+
+    # PLAYER INFO
 
     st.markdown(
         f"## {player2}"
@@ -302,8 +345,18 @@ with card_col2:
     )
 
     st.metric(
+        "Assists/60",
+        round(p2["Assists/60"], 2)
+    )
+
+    st.metric(
         "xG/60",
         round(p2["xG/60"], 2)
+    )
+
+    st.metric(
+        "Net xG",
+        round(p2["Net xG"], 2)
     )
 
     st.metric(
@@ -333,27 +386,30 @@ for metric in comparison_metrics:
     value1 = round(p1[metric], 2)
     value2 = round(p2[metric], 2)
 
-    # BETTER / WORSE COLORS
+    # BETTER / WORSE
 
     if value1 > value2:
 
-        p1_display = f"🟢 {value1}"
-        p2_display = f"🔴 {value2}"
+        winner1 = "🟢"
+        winner2 = "🔴"
 
     elif value2 > value1:
 
-        p1_display = f"🔴 {value1}"
-        p2_display = f"🟢 {value2}"
+        winner1 = "🔴"
+        winner2 = "🟢"
 
     else:
 
-        p1_display = f"⚪ {value1}"
-        p2_display = f"⚪ {value2}"
+        winner1 = "⚪"
+        winner2 = "⚪"
 
     table_rows.append({
+
         "Metric": metric,
-        player1: p1_display,
-        player2: p2_display
+
+        player1: f"{winner1} {value1}",
+
+        player2: f"{winner2} {value2}"
     })
 
 comparison_df = pd.DataFrame(table_rows)
@@ -362,4 +418,8 @@ comparison_df = pd.DataFrame(table_rows)
 # DISPLAY TABLE
 # =========================
 
-st.table(comparison_df)
+st.dataframe(
+    comparison_df,
+    use_container_width=False,
+    hide_index=True
+)
