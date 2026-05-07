@@ -37,7 +37,7 @@ df["Position"] = (
 
 st.sidebar.header("Filters")
 
-# TOI FILTER
+# MINIMUM TOI
 
 min_toi = st.sidebar.slider(
     "Minimum TOI",
@@ -47,7 +47,7 @@ min_toi = st.sidebar.slider(
     step=10
 )
 
-# GAMES FILTER
+# MINIMUM GAMES
 
 min_games = st.sidebar.slider(
     "Minimum Games",
@@ -160,9 +160,9 @@ def stat_tile(title, value):
     html = f"""
     <div style="
         background:{color};
-        border-radius:8px;
-        height:95px;
-        padding:8px;
+        border-radius:10px;
+        height:110px;
+        padding:10px;
         display:flex;
         flex-direction:column;
         justify-content:center;
@@ -173,16 +173,16 @@ def stat_tile(title, value):
     ">
 
         <div style="
-            font-size:13px;
-            font-weight:600;
+            font-size:14px;
+            font-weight:700;
             text-align:center;
-            margin-bottom:6px;
+            margin-bottom:8px;
         ">
             {title}
         </div>
 
         <div style="
-            font-size:34px;
+            font-size:38px;
             font-weight:800;
             line-height:1;
         ">
@@ -194,7 +194,7 @@ def stat_tile(title, value):
 
     components.html(
         html,
-        height=105
+        height=120
     )
 
 # ==================================================
@@ -231,219 +231,111 @@ with header2:
     )
 
 # ==================================================
-# SHOOTING
+# SKILL PROFILE
 # ==================================================
 
-st.markdown("## Shooting")
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    stat_tile(
-        "Shots",
-        p["Shots/60 Percentile"]
-    )
-
-with c2:
-    stat_tile(
-        "Scoring Chances",
-        p["Scoring chances - total/60 Percentile"]
-    )
-
-with c3:
-    stat_tile(
-        "Inner Slot",
-        p["Inner slot shots - total/60 Percentile"]
-    )
-
-with c4:
-    stat_tile(
-        "Finishing",
-        p["Goals/60 Percentile"]
-    )
-
-# ==================================================
-# PLAYMAKING
-# ==================================================
-
-st.markdown("## Playmaking")
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    stat_tile(
-        "Pre-Shot Passes",
-        p["Pre-shots passes/60 Percentile"]
-    )
-
-with c2:
-    stat_tile(
-        "Slot Passing",
-        p["Passes to the slot/60 Percentile"]
-    )
-
-with c3:
-    stat_tile(
-        "First Assists",
-        p["First assist/60 Percentile"]
-    )
-
-with c4:
-    stat_tile(
-        "Pass Accuracy",
-        p["Accurate passes, % Percentile"]
-    )
-
-# ==================================================
-# TRANSITION
-# ==================================================
-
-st.markdown("## Transition")
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    stat_tile(
-        "Entries",
-        p["Entries/60 Percentile"]
-    )
-
-with c2:
-    stat_tile(
-        "Carry Entries",
-        p["Entries via stickhandling/60 Percentile"]
-    )
-
-with c3:
-    stat_tile(
-        "Controlled Entries",
-        p["Entries via pass/60 Percentile"]
-    )
-
-with c4:
-    stat_tile(
-        "Breakouts",
-        p["Breakouts/60 Percentile"]
-    )
-
-# ==================================================
-# PUCK MOVEMENT
-# ==================================================
-
-st.markdown("## Puck Movement")
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    stat_tile(
-        "Pass Exits",
-        p["Breakouts via pass/60 Percentile"]
-    )
-
-with c2:
-    stat_tile(
-        "Carry Exits",
-        p["Breakouts via stickhandling/60 Percentile"]
-    )
-
-with c3:
-    stat_tile(
-        "Puck Touches",
-        p["Puck touches/60 Percentile"]
-    )
-
-with c4:
-    stat_tile(
-        "Puck Control",
-        p["Puck control time/60 Percentile"]
-    )
-
-# ==================================================
-# DEFENSE
-# ==================================================
-
-st.markdown("## Defense")
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    stat_tile(
-        "Takeaways",
-        p["Takeaways/60 Percentile"]
-    )
-
-with c2:
-    stat_tile(
-        "DZ Takeaways",
-        p["Takeaways in DZ Percentile"]
-    )
-
-with c3:
-    stat_tile(
-        "Battle Win %",
-        p["Puck battles won, % Percentile"]
-    )
-
-with c4:
-    stat_tile(
-        "Suppression",
-        p["Opponent's xG when on ice Percentile"]
-    )
-
-# ==================================================
-# IMPACT
-# ==================================================
-
-st.markdown("## Impact")
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    stat_tile(
-        "Net xG",
-        p["Net xG (xG player on - opp. team's xG) Percentile"]
-    )
-
-with c2:
-    stat_tile(
-        "Team xG",
-        p["Team xG when on ice Percentile"]
-    )
-
-with c3:
-    stat_tile(
-        "Corsi",
-        p["CORSI for, % Percentile"]
-    )
-
-with c4:
-    stat_tile(
-        "Fenwick",
-        p["Fenwick for, % Percentile"]
-    )
-
-# ==================================================
-# OVERALL
-# ==================================================
-
-st.markdown("## Overall")
+st.markdown("## Skill Profile")
 
 c1, c2, c3 = st.columns(3)
 
 with c1:
+
+    stat_tile(
+        "Shooting",
+        p["Shooting Score"]
+    )
+
+with c2:
+
+    stat_tile(
+        "Playmaking",
+        p["Playmaking Score"]
+    )
+
+with c3:
+
+    stat_tile(
+        "Transition",
+        p["Transition Score"]
+    )
+
+c4, c5, c6 = st.columns(3)
+
+with c4:
+
+    stat_tile(
+        "Puck Movement",
+        p["Puck Movement Score"]
+    )
+
+with c5:
+
+    stat_tile(
+        "Defense",
+        p["Defense Score"]
+    )
+
+with c6:
+
+    stat_tile(
+        "Impact",
+        p["Impact Score"]
+    )
+
+# ==================================================
+# OVERALL SECTION
+# ==================================================
+
+st.markdown("## Overall")
+
+o1, o2 = st.columns(2)
+
+with o1:
+
     stat_tile(
         "Overall Score",
         p["Overall Score"]
     )
 
-with c2:
+with o2:
+
     stat_tile(
         "Overall Percentile",
         p["Overall Score Percentile"]
     )
 
-with c3:
+# ==================================================
+# RAW STATS
+# ==================================================
+
+st.markdown("## Raw Production")
+
+r1, r2, r3, r4 = st.columns(4)
+
+with r1:
+
     stat_tile(
-        "Puck Movement",
-        p["Puck Movement Score"]
+        "Points",
+        p["Points"]
+    )
+
+with r2:
+
+    stat_tile(
+        "Goals",
+        p["Goals"]
+    )
+
+with r3:
+
+    stat_tile(
+        "Assists",
+        p["Assists"]
+    )
+
+with r4:
+
+    stat_tile(
+        "xG",
+        p["xG (Expected goals)"]
     )
