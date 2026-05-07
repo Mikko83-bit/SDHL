@@ -44,6 +44,7 @@ numeric_columns = [
 ]
 
 for col in numeric_columns:
+
     df[col] = pd.to_numeric(
         df[col],
         errors="coerce"
@@ -130,14 +131,15 @@ p2 = filtered_position_df[
 # =========================
 # RADAR METRICS
 # =========================
+# TOI REMOVED FROM RADAR
+# =========================
 
 metrics = [
     "Goals/60",
     "Assists/60",
     "xG/60",
     "Net xG",
-    "Game Score",
-    "Time on ice"
+    "Game Score"
 ]
 
 # =========================
