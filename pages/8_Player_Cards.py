@@ -2,28 +2,30 @@ import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
 
-# =========================
+# ==================================================
 # PAGE CONFIG
-# =========================
+# ==================================================
 
 st.set_page_config(
     page_title="SDHL Microstats Cards",
     layout="wide"
 )
 
-# =========================
+# ==================================================
 # LOAD DATA
-# =========================
+# ==================================================
 
 df = pd.read_excel(
     "SDHL_Player_Cards_Data.xlsx"
 )
 
-# =========================
+# ==================================================
 # CLEAN DATA
-# =========================
+# ==================================================
 
 df.columns = df.columns.str.strip()
+
+# CLEAN POSITION
 
 df["Position"] = (
     df["Position"]
@@ -31,11 +33,11 @@ df["Position"] = (
     .str.strip()
 )
 
-# =========================
-# CREATE PERCENTILES
-# =========================
+# ==================================================
+# CONVERT NUMERIC COLUMNS
+# ==================================================
 
-percentile_metrics = [
+numeric_columns = [
 
     "Goals/60",
     "Assists/60",
@@ -60,30 +62,104 @@ percentile_metrics = [
     "Puck touches/60",
     "Puck control time/60",
 
-    "Puck battles won, %",
+    "Scoring chances - total/60",
+    "Inner slot shots - total/60",
+
+    "Goals/60",
 
     "Opponent's xG when on ice",
 
     "Net xG (xG player on - opp. team's xG)",
 
+    "Team xG when on ice"
+]
+
+for col in numeric_columns:
+
+    if col in df.columns:
+
+        df[col] = pd.to_numeric(
+            df[col],
+            errors="coerce"
+        ).fillna(0)
+
+# ==================================================
+# FIX % COLUMNS
+# ==================================================
+
+percent_columns = [
+
+    "Accurate passes, %",
+    "Puck battles won, %",
+    "CORSI for, %",
+    "Fenwick for, %"
+
+]
+
+for col in percent_columns:
+
+    if col in df.columns:
+
+        df[col] = (
+
+            df[col]
+            .astype(str)
+            .str.replace("%", "")
+            .str.replace(",", ".")
+        )
+
+        df[col] = pd.to_numeric(
+            df[col],
+            errors="coerce"
+        ).fillna(0)
+
+# ==================================================
+# CREATE PERCENTILES
+# ==================================================
+
+percentile_metrics = [
+
+    "Goals/60",
+    "Assists/60",
+    "Shots/60",
+    "xG (Expected goals)/60",
+
+    "Scoring chances - total/60",
+    "Inner slot shots - total/60",
+
+    "Pre-shots passes/60",
+    "Passes to the slot/60",
+    "First assist/60",
+    "Accurate passes, %",
+
+    "Entries/60",
+    "Entries via stickhandling/60",
+    "Entries via pass/60",
+
+    "Breakouts/60",
+    "Breakouts via stickhandling/60",
+    "Breakouts via pass/60",
+
+    "Puck touches/60",
+    "Puck control time/60",
+
+    "Takeaways/60",
+    "Takeaways in DZ",
+    "Puck battles won, %",
+
+    "Opponent's xG when on ice",
+
+    "Net xG (xG player on - opp. team's xG)",
     "Team xG when on ice",
 
     "CORSI for, %",
-    "Fenwick for, %",
-
-    "Scoring chances - total/60",
-    "Inner slot shots - total/60"
+    "Fenwick for, %"
 
 ]
 
 for metric in percentile_metrics:
 
     if metric in df.columns:
-
-        df[metric] = pd.to_numeric(
-            df[metric],
-            errors="coerce"
-        ).fillna(0)
 
         df[f"{metric} Percentile"] = (
 
@@ -94,24 +170,26 @@ for metric in percentile_metrics:
 
 # REVERSE NEGATIVE METRIC
 
-df["Opponent's xG when on ice Percentile"] = (
+if "Opponent's xG when on ice" in df.columns:
 
-    100 -
+    df["Opponent's xG when on ice Percentile"] = (
 
-    df["Opponent's xG when on ice"]
-    .rank(pct=True) * 100
+        100 -
 
-)
+        df["Opponent's xG when on ice"]
+        .rank(pct=True) * 100
 
-# =========================
+    )
+
+# ==================================================
 # TITLE
-# =========================
+# ==================================================
 
 st.title("🏒 SDHL Microstats Cards")
 
-# =========================
+# ==================================================
 # SIDEBAR
-# =========================
+# ==================================================
 
 st.sidebar.header("Filters")
 
@@ -137,17 +215,17 @@ selected_player = st.sidebar.selectbox(
     players
 )
 
-# =========================
-# PLAYER DATA
-# =========================
+# ==================================================
+# PLAYER
+# ==================================================
 
 p = filtered_df[
     filtered_df["Player"] == selected_player
 ].iloc[0]
 
-# =========================
+# ==================================================
 # TEAM LOGOS
-# =========================
+# ==================================================
 
 team_logos = {
 
@@ -164,9 +242,9 @@ team_logos = {
 
 }
 
-# =========================
-# COLOR FUNCTION
-# =========================
+# ==================================================
+# COLORS
+# ==================================================
 
 def get_color(value):
 
@@ -188,11 +266,11 @@ def get_color(value):
 
     else:
 
-        return "#E63946"
+        return "#D94B4B"
 
-# =========================
-# TILE FUNCTION
-# =========================
+# ==================================================
+# TILE
+# ==================================================
 
 def stat_tile(title, value):
 
@@ -222,8 +300,8 @@ def stat_tile(title, value):
         <div style="
             font-size:13px;
             font-weight:600;
-            text-align:center;
             margin-bottom:6px;
+            text-align:center;
         ">
             {title}
         </div>
@@ -244,13 +322,13 @@ def stat_tile(title, value):
         height=105
     )
 
-# =========================
+# ==================================================
 # HEADER
-# =========================
+# ==================================================
 
-header_col1, header_col2 = st.columns([1, 5])
+header1, header2 = st.columns([1, 5])
 
-with header_col1:
+with header1:
 
     if p["Team"] in team_logos:
 
@@ -259,7 +337,7 @@ with header_col1:
             width=120
         )
 
-with header_col2:
+with header2:
 
     st.markdown(
         f"# {selected_player}"
@@ -269,217 +347,190 @@ with header_col2:
         f"### {p['Team']} | {p['Position']}"
     )
 
-# =========================
+# ==================================================
 # SHOOTING
-# =========================
+# ==================================================
 
 st.markdown("## Shooting")
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-
-    stat_tile(
-        "Shots",
-        p["Shots/60 Percentile"]
-    )
+    stat_tile("Shots", p["Shots/60 Percentile"])
 
 with c2:
-
     stat_tile(
         "Scoring Chances",
         p["Scoring chances - total/60 Percentile"]
     )
 
 with c3:
-
     stat_tile(
         "Inner Slot",
         p["Inner slot shots - total/60 Percentile"]
     )
 
 with c4:
-
     stat_tile(
         "Finishing",
         p["Goals/60 Percentile"]
     )
 
-# =========================
+# ==================================================
 # PLAYMAKING
-# =========================
+# ==================================================
 
 st.markdown("## Playmaking")
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-
     stat_tile(
         "Pre-Shot Passes",
         p["Pre-shots passes/60 Percentile"]
     )
 
 with c2:
-
     stat_tile(
         "Slot Passing",
         p["Passes to the slot/60 Percentile"]
     )
 
 with c3:
-
     stat_tile(
         "First Assists",
         p["First assist/60 Percentile"]
     )
 
 with c4:
-
     stat_tile(
         "Pass Accuracy",
         p["Accurate passes, % Percentile"]
     )
 
-# =========================
+# ==================================================
 # TRANSITION
-# =========================
+# ==================================================
 
 st.markdown("## Transition")
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-
     stat_tile(
         "Entries",
         p["Entries/60 Percentile"]
     )
 
 with c2:
-
     stat_tile(
         "Carry Entries",
         p["Entries via stickhandling/60 Percentile"]
     )
 
 with c3:
-
     stat_tile(
         "Controlled Entries",
         p["Entries via pass/60 Percentile"]
     )
 
 with c4:
-
     stat_tile(
         "Breakouts",
         p["Breakouts/60 Percentile"]
     )
 
-# =========================
+# ==================================================
 # PUCK MOVEMENT
-# =========================
+# ==================================================
 
 st.markdown("## Puck Movement")
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-
     stat_tile(
         "Pass Exits",
         p["Breakouts via pass/60 Percentile"]
     )
 
 with c2:
-
     stat_tile(
         "Carry Exits",
         p["Breakouts via stickhandling/60 Percentile"]
     )
 
 with c3:
-
     stat_tile(
         "Puck Touches",
         p["Puck touches/60 Percentile"]
     )
 
 with c4:
-
     stat_tile(
         "Puck Control",
         p["Puck control time/60 Percentile"]
     )
 
-# =========================
+# ==================================================
 # DEFENSE
-# =========================
+# ==================================================
 
 st.markdown("## Defense")
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-
     stat_tile(
         "Takeaways",
         p["Takeaways/60 Percentile"]
     )
 
 with c2:
-
     stat_tile(
         "DZ Takeaways",
         p["Takeaways in DZ Percentile"]
     )
 
 with c3:
-
     stat_tile(
         "Battle Win %",
         p["Puck battles won, % Percentile"]
     )
 
 with c4:
-
     stat_tile(
         "Suppression",
         p["Opponent's xG when on ice Percentile"]
     )
 
-# =========================
+# ==================================================
 # IMPACT
-# =========================
+# ==================================================
 
 st.markdown("## Impact")
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-
     stat_tile(
         "Net xG",
         p["Net xG (xG player on - opp. team's xG) Percentile"]
     )
 
 with c2:
-
     stat_tile(
         "Team xG",
         p["Team xG when on ice Percentile"]
     )
 
 with c3:
-
     stat_tile(
         "Corsi",
         p["CORSI for, % Percentile"]
     )
 
 with c4:
-
     stat_tile(
         "Fenwick",
         p["Fenwick for, % Percentile"]
