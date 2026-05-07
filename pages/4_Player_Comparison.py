@@ -12,29 +12,22 @@ st.set_page_config(layout="wide")
 # PAGE TITLE
 # =========================
 
-st.title("⚔️ Player Comparison")
+st.title("🧠 Game Score Comparison")
+
+# =========================
+# TEAM LOGOS
+# =========================
+
+team_logos = {
+    "Lulea/MSSK": "images/lulea.png"
+}
 
 # =========================
 # LOAD DATA
 # =========================
 
-df_value = pd.read_excel(
-    "SDHL_Player_Value_Model.xlsx"
-)
-
-df_gamescore = pd.read_excel(
+df = pd.read_excel(
     "SDHL_ZScore_GameScore_Final.xlsx"
-)
-
-# =========================
-# MERGE DATA
-# =========================
-
-df = pd.merge(
-    df_value,
-    df_gamescore,
-    on=["Player", "Team", "Position"],
-    how="inner"
 )
 
 # =========================
@@ -42,121 +35,129 @@ df = pd.merge(
 # =========================
 
 numeric_columns = [
-    "Value",
-    "Value_pct",
-    "Creation Score",
-    "Shot Quality",
-    "Puck Control",
-    "Net xG /60",
+    "Goals/60",
+    "Assists/60",
+    "xG/60",
+    "Net xG",
     "Game Score",
-    "Adjusted Game Score"
+    "Time on ice"
 ]
 
 for col in numeric_columns:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df[col] = pd.to_numeric(
+        df[col],
+        errors="coerce"
+    )
 
 df = df.dropna(subset=numeric_columns)
 
 # =========================
-# TEAM COLORS
+# SIDEBAR FILTERS
 # =========================
 
-team_colors = {
-    "Brynas": "#C9A227",
-    "Lulea/MSSK": "#D72638",
-    "Frolunda": "#1B5E20",
-    "SDE HF": "#1976D2",
-    "MODO": "#7B1FA2",
-    "Djurgarden": "#0D47A1",
-    "Farjestad": "#2E7D32",
-    "Linkoping": "#1565C0",
-    "Skelleftea": "#F57C00"
-}
+st.sidebar.header("Filters")
 
-# =========================
+# POSITION FILTER
+
+positions = sorted(
+    df["Position"].unique()
+)
+
+selected_position = st.sidebar.selectbox(
+    "Position",
+    positions
+)
+
+filtered_position_df = df[
+    df["Position"] == selected_position
+]
+
 # TEAM FILTERS
-# =========================
 
-st.subheader("🏒 Team Selection")
+teams = sorted(
+    filtered_position_df["Team"].unique()
+)
 
-teams = sorted(df["Team"].unique())
+team1 = st.sidebar.selectbox(
+    "Select Team 1",
+    teams
+)
 
-col1, col2 = st.columns(2)
-
-with col1:
-    team1 = st.selectbox(
-        "Select Team 1",
-        teams
-    )
-
-with col2:
-    team2 = st.selectbox(
-        "Select Team 2",
-        teams
-    )
+team2 = st.sidebar.selectbox(
+    "Select Team 2",
+    teams,
+    index=1 if len(teams) > 1 else 0
+)
 
 # =========================
 # PLAYER FILTERS
 # =========================
 
 players_team1 = sorted(
-    df[df["Team"] == team1]["Player"].unique()
+    filtered_position_df[
+        filtered_position_df["Team"] == team1
+    ]["Player"].unique()
 )
 
 players_team2 = sorted(
-    df[df["Team"] == team2]["Player"].unique()
+    filtered_position_df[
+        filtered_position_df["Team"] == team2
+    ]["Player"].unique()
 )
 
-st.subheader("👥 Player Selection")
+player1 = st.sidebar.selectbox(
+    "Select Player 1",
+    players_team1
+)
 
-col1, col2 = st.columns(2)
-
-with col1:
-    player1 = st.selectbox(
-        "Select Player 1",
-        players_team1
-    )
-
-with col2:
-    player2 = st.selectbox(
-        "Select Player 2",
-        players_team2
-    )
+player2 = st.sidebar.selectbox(
+    "Select Player 2",
+    players_team2
+)
 
 # =========================
 # PLAYER DATA
 # =========================
 
-p1 = df[df["Player"] == player1].iloc[0]
-p2 = df[df["Player"] == player2].iloc[0]
+p1 = filtered_position_df[
+    filtered_position_df["Player"] == player1
+].iloc[0]
 
-# =========================
-# TEAM COLORS
-# =========================
-
-color1 = team_colors.get(team1, "#00BFFF")
-color2 = team_colors.get(team2, "#FF4C4C")
+p2 = filtered_position_df[
+    filtered_position_df["Player"] == player2
+].iloc[0]
 
 # =========================
 # RADAR METRICS
 # =========================
 
 metrics = [
-    "Creation Score",
-    "Shot Quality",
-    "Puck Control",
-    "Net xG /60",
-    "Game Score",
-    "Adjusted Game Score"
+    "Goals/60",
+    "Assists/60",
+    "xG/60",
+    "Net xG",
+    "Game Score"
 ]
 
 # =========================
-# RADAR CHART
+# AUTO SCALE
 # =========================
 
-st.subheader("📊 Radar Comparison")
+max_value = max(
+    max([p1[m] for m in metrics]),
+    max([p2[m] for m in metrics])
+) * 1.15
+
+# =========================
+# RADAR COMPARISON
+# =========================
+
+st.subheader("📊 Advanced Analytics Radar")
 
 fig = go.Figure()
+
+# PLAYER 1
 
 fig.add_trace(go.Scatterpolar(
     r=[p1[m] for m in metrics],
@@ -164,11 +165,13 @@ fig.add_trace(go.Scatterpolar(
     fill='toself',
     name=player1,
     line=dict(
-        color=color1,
-        width=3
+        color='#00E5FF',
+        width=4
     ),
-    fillcolor='rgba(0,191,255,0.30)'
+    fillcolor='rgba(0,229,255,0.30)'
 ))
+
+# PLAYER 2
 
 fig.add_trace(go.Scatterpolar(
     r=[p2[m] for m in metrics],
@@ -176,11 +179,15 @@ fig.add_trace(go.Scatterpolar(
     fill='toself',
     name=player2,
     line=dict(
-        color=color2,
-        width=3
+        color='#FF5252',
+        width=4
     ),
-    fillcolor='rgba(255,76,76,0.30)'
+    fillcolor='rgba(255,82,82,0.30)'
 ))
+
+# =========================
+# RADAR LAYOUT
+# =========================
 
 fig.update_layout(
     template="plotly_dark",
@@ -188,17 +195,19 @@ fig.update_layout(
         bgcolor="#111111",
         radialaxis=dict(
             visible=True,
-            range=[0, 15],
+            range=[0, max_value],
             gridcolor="gray",
             linecolor="gray",
-            tickfont=dict(color="white")
+            tickfont=dict(
+                color="white"
+            )
         ),
         angularaxis=dict(
             gridcolor="gray",
             linecolor="gray",
             tickfont=dict(
                 color="white",
-                size=12
+                size=13
             )
         )
     ),
@@ -217,36 +226,90 @@ st.plotly_chart(
 )
 
 # =========================
-# PLAYER INFORMATION
+# PLAYER CARDS
 # =========================
 
-st.subheader("📋 Player Information")
+st.subheader("🏒 Player Cards")
 
-info_col1, info_col2 = st.columns(2)
+card_col1, card_col2 = st.columns(2)
 
-with info_col1:
-    st.markdown(f"### {player1}")
+# PLAYER 1 CARD
 
-    st.write({
-        "Team": p1["Team"],
-        "Position": p1["Position"],
-        "Value": round(p1["Value"], 2),
-        "Value %": round(p1["Value_pct"], 1),
-        "Game Score": round(p1["Game Score"], 2),
-        "Adjusted GS": round(p1["Adjusted Game Score"], 2)
-    })
+with card_col1:
 
-with info_col2:
-    st.markdown(f"### {player2}")
+    if p1["Team"] in team_logos:
 
-    st.write({
-        "Team": p2["Team"],
-        "Position": p2["Position"],
-        "Value": round(p2["Value"], 2),
-        "Value %": round(p2["Value_pct"], 1),
-        "Game Score": round(p2["Game Score"], 2),
-        "Adjusted GS": round(p2["Adjusted Game Score"], 2)
-    })
+        st.image(
+            team_logos[p1["Team"]],
+            width=120
+        )
+
+    st.markdown(
+        f"## {player1}"
+    )
+
+    st.markdown(
+        f"### {p1['Team']} | {p1['Position']}"
+    )
+
+    st.metric(
+        "Game Score",
+        round(p1["Game Score"], 2)
+    )
+
+    st.metric(
+        "Goals/60",
+        round(p1["Goals/60"], 2)
+    )
+
+    st.metric(
+        "xG/60",
+        round(p1["xG/60"], 2)
+    )
+
+    st.metric(
+        "TOI",
+        round(p1["Time on ice"], 1)
+    )
+
+# PLAYER 2 CARD
+
+with card_col2:
+
+    if p2["Team"] in team_logos:
+
+        st.image(
+            team_logos[p2["Team"]],
+            width=120
+        )
+
+    st.markdown(
+        f"## {player2}"
+    )
+
+    st.markdown(
+        f"### {p2['Team']} | {p2['Position']}"
+    )
+
+    st.metric(
+        "Game Score",
+        round(p2["Game Score"], 2)
+    )
+
+    st.metric(
+        "Goals/60",
+        round(p2["Goals/60"], 2)
+    )
+
+    st.metric(
+        "xG/60",
+        round(p2["xG/60"], 2)
+    )
+
+    st.metric(
+        "TOI",
+        round(p2["Time on ice"], 1)
+    )
 
 # =========================
 # COMPARISON TABLE
@@ -255,29 +318,52 @@ with info_col2:
 st.subheader("📈 Comparison Table")
 
 comparison_metrics = [
-    "Creation Score",
-    "Shot Quality",
-    "Puck Control",
-    "Net xG /60",
+    "Goals/60",
+    "Assists/60",
+    "xG/60",
+    "Net xG",
     "Game Score",
-    "Adjusted Game Score",
-    "Value",
-    "Value_pct"
+    "Time on ice"
 ]
 
-comparison_df = pd.DataFrame({
-    "Metric": comparison_metrics,
-    player1: [
-        round(p1[m], 2)
-        for m in comparison_metrics
-    ],
-    player2: [
-        round(p2[m], 2)
-        for m in comparison_metrics
-    ]
-})
+table_rows = []
+
+for metric in comparison_metrics:
+
+    value1 = round(p1[metric], 2)
+    value2 = round(p2[metric], 2)
+
+    # BETTER / WORSE COLORS
+
+    if value1 > value2:
+
+        winner1 = "🟢"
+        winner2 = "🔴"
+
+    elif value2 > value1:
+
+        winner1 = "🔴"
+        winner2 = "🟢"
+
+    else:
+
+        winner1 = "⚪"
+        winner2 = "⚪"
+
+    table_rows.append({
+        "Metric": metric,
+        player1: f"{winner1} {value1}",
+        player2: f"{winner2} {value2}"
+    })
+
+comparison_df = pd.DataFrame(table_rows)
+
+# =========================
+# DISPLAY TABLE
+# =========================
 
 st.dataframe(
     comparison_df,
-    use_container_width=True
+    use_container_width=False,
+    hide_index=True
 )
