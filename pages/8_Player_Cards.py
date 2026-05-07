@@ -37,7 +37,9 @@ df["Position"] = (
 
 st.sidebar.header("Filters")
 
+# ==================================================
 # MINIMUM TOI
+# ==================================================
 
 min_toi = st.sidebar.slider(
     "Minimum TOI",
@@ -47,7 +49,9 @@ min_toi = st.sidebar.slider(
     step=10
 )
 
+# ==================================================
 # MINIMUM GAMES
+# ==================================================
 
 min_games = st.sidebar.slider(
     "Minimum Games",
@@ -57,14 +61,37 @@ min_games = st.sidebar.slider(
     step=1
 )
 
-# APPLY FILTERS
+# ==================================================
+# APPLY SAMPLE FILTERS
+# ==================================================
 
 df = df[
     (df["Time on ice"] >= min_toi) &
     (df["Games played"] >= min_games)
 ]
 
+# ==================================================
+# TEAM FILTER
+# ==================================================
+
+teams = sorted(
+    df["Team"].dropna().unique()
+)
+
+selected_team = st.sidebar.selectbox(
+    "Team",
+    ["All Teams"] + teams
+)
+
+if selected_team != "All Teams":
+
+    df = df[
+        df["Team"] == selected_team
+    ]
+
+# ==================================================
 # POSITION FILTER
+# ==================================================
 
 positions = sorted(
     df["Position"].dropna().unique()
@@ -79,7 +106,9 @@ filtered_df = df[
     df["Position"] == selected_position
 ]
 
+# ==================================================
 # PLAYER FILTER
+# ==================================================
 
 players = sorted(
     filtered_df["Player"].dropna().unique()
@@ -283,7 +312,7 @@ with c6:
     )
 
 # ==================================================
-# OVERALL SECTION
+# OVERALL
 # ==================================================
 
 st.markdown("## Overall")
