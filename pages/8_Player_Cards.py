@@ -1,319 +1,285 @@
-import streamlit as st
 import pandas as pd
-import streamlit.components.v1 as components
-
-# =========================
-# PAGE CONFIG
-# =========================
-
-st.set_page_config(
-    page_title="SDHL Microstats Card",
-    layout="wide"
-)
+from scipy.stats import percentileofscore
 
 # =========================
 # LOAD DATA
 # =========================
 
 df = pd.read_excel(
-    "SDHL_Player_Cards_Data.xlsx"
+    "Skaters - Lulea HF, 07-May-2026.xlsx"
 )
+
+# =========================
+# CLEAN COLUMNS
+# =========================
 
 df.columns = df.columns.str.strip()
 
 # =========================
-# FILTERS
+# FILL MISSING VALUES
 # =========================
 
-st.sidebar.header("Filters")
+df = df.fillna(0)
 
-positions = sorted(
-    df["Position"].dropna().unique()
-)
+# =========================
+# TIME ON ICE
+# =========================
 
-selected_position = st.sidebar.selectbox(
-    "Position",
-    positions
-)
+toi = "Time on ice"
 
-filtered_df = df[
-    df["Position"] == selected_position
+# =========================
+# CREATE PER60 STATS
+# =========================
+
+per60_stats = [
+
+    "Goals",
+    "Assists",
+    "Shots",
+    "xG (Expected goals)",
+    "Puck battles",
+    "Puck battles won",
+    "Pre-shots passes",
+    "Passes to the slot",
+    "Entries",
+    "Breakouts",
+    "Takeaways",
+    "Puck losses",
+    "Shots on goal",
+    "Inner slot shots - total",
+    "Scoring chances - total",
+    "First assist",
+    "Accurate passes",
+    "Entries via stickhandling",
+    "Entries via pass",
+    "Breakouts via stickhandling",
+    "Breakouts via pass",
+    "Puck touches",
+    "Puck control time"
 ]
 
-players = sorted(
-    filtered_df["Player"].dropna().unique()
+for stat in per60_stats:
+
+    df[f"{stat}/60"] = (
+        df[stat] / df[toi]
+    ) * 60
+
+# =========================
+# SHOOTING METRICS
+# =========================
+
+shooting_metrics = [
+
+    "Shots/60",
+    "Scoring chances - total/60",
+    "Inner slot shots - total/60",
+    "Goals/60"
+
+]
+
+# =========================
+# PLAYMAKING METRICS
+# =========================
+
+playmaking_metrics = [
+
+    "Pre-shots passes/60",
+    "Passes to the slot/60",
+    "First assist/60",
+    "Accurate passes, %"
+
+]
+
+# =========================
+# TRANSITION METRICS
+# =========================
+
+transition_metrics = [
+
+    "Entries/60",
+    "Entries via stickhandling/60",
+    "Entries via pass/60",
+    "Breakouts/60"
+
+]
+
+# =========================
+# PUCK MOVEMENT METRICS
+# =========================
+
+puck_movement_metrics = [
+
+    "Breakouts via pass/60",
+    "Breakouts via stickhandling/60",
+    "Puck touches/60",
+    "Puck control time/60"
+
+]
+
+# =========================
+# DEFENSE METRICS
+# =========================
+
+defense_metrics = [
+
+    "Takeaways/60",
+    "Takeaways in DZ",
+    "Puck battles won, %",
+    "Opponent's xG when on ice"
+
+]
+
+# =========================
+# IMPACT METRICS
+# =========================
+
+impact_metrics = [
+
+    "Net xG (xG player on - opp. team's xG)",
+    "Team xG when on ice",
+    "CORSI for, %",
+    "Fenwick for, %"
+
+]
+
+# =========================
+# CREATE PERCENTILES
+# =========================
+
+all_metrics = (
+
+    shooting_metrics +
+
+    playmaking_metrics +
+
+    transition_metrics +
+
+    puck_movement_metrics +
+
+    defense_metrics +
+
+    impact_metrics
+
 )
 
-selected_player = st.sidebar.selectbox(
-    "Player",
-    players
-)
+for metric in all_metrics:
 
-# =========================
-# PLAYER DATA
-# =========================
+    # NUMERIC
 
-p = filtered_df[
-    filtered_df["Player"] == selected_player
-].iloc[0]
+    df[metric] = pd.to_numeric(
+        df[metric],
+        errors="coerce"
+    ).fillna(0)
 
-# =========================
-# TITLE
-# =========================
+    # REVERSE BAD METRICS
 
-st.title("🏒 SDHL Microstats Card")
+    reverse_metric = (
 
-# =========================
-# PLAYER INFO
-# =========================
+        metric == "Opponent's xG when on ice"
 
-info_col1, info_col2 = st.columns([1, 4])
-
-with info_col1:
-
-    st.markdown(
-        f"""
-        ## {selected_player}
-
-        ### {p['Team']}
-
-        ### Position: {p['Position']}
-        """
     )
 
-with info_col2:
+    if reverse_metric:
 
-    st.empty()
+        df[f"{metric} Percentile"] = df[metric].apply(
 
-# =========================
-# COLOR FUNCTION
-# =========================
+            lambda x: 100 - percentileofscore(
+                df[metric],
+                x
+            )
 
-def get_tile_color(value):
-
-    if value >= 90:
-
-        return "#1E3A5F"
-
-    elif value >= 75:
-
-        return "#3B82C4"
-
-    elif value >= 50:
-
-        return "#A7D0F2"
-
-    elif value >= 30:
-
-        return "#F7B7B7"
+        )
 
     else:
 
-        return "#E63946"
+        df[f"{metric} Percentile"] = df[metric].apply(
+
+            lambda x: percentileofscore(
+                df[metric],
+                x
+            )
+
+        )
 
 # =========================
-# TILE FUNCTION
+# CREATE SKILL SCORES
 # =========================
 
-def stat_tile(title, value):
+def average_percentiles(metrics):
 
-    if pd.isna(value):
+    percentile_cols = [
 
-        value = 0
+        f"{m} Percentile"
+        for m in metrics
 
-    value = int(value)
+    ]
 
-    color = get_tile_color(value)
+    return df[percentile_cols].mean(axis=1)
 
-    html_code = f"""
-    <div style="
-        background:{color};
-        border-radius:6px;
-        padding:10px;
-        height:95px;
-        text-align:center;
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        align-items:center;
-        font-family:Arial;
-        color:black;
-        margin-bottom:10px;
-    ">
+# FORWARDS
 
-        <div style="
-            font-size:14px;
-            margin-bottom:6px;
-            font-weight:600;
-        ">
-            {title}
-        </div>
+df["Shooting Score"] = average_percentiles(
+    shooting_metrics
+)
 
-        <div style="
-            font-size:34px;
-            font-weight:800;
-            line-height:1;
-        ">
-            {value}%
-        </div>
+df["Playmaking Score"] = average_percentiles(
+    playmaking_metrics
+)
 
-    </div>
-    """
+df["Transition Score"] = average_percentiles(
+    transition_metrics
+)
 
-    components.html(
-        html_code,
-        height=105
-    )
+df["Puck Movement Score"] = average_percentiles(
+    puck_movement_metrics
+)
+
+df["Defense Score"] = average_percentiles(
+    defense_metrics
+)
+
+df["Impact Score"] = average_percentiles(
+    impact_metrics
+)
 
 # =========================
-# CATEGORY TITLES
+# CREATE OVERALL
 # =========================
 
-st.markdown("## Shooting")
+df["Overall Score"] = (
 
-shoot_col1, shoot_col2, shoot_col3, shoot_col4 = st.columns(4)
+    df["Shooting Score"] * 0.20 +
 
-with shoot_col1:
+    df["Playmaking Score"] * 0.20 +
 
-    stat_tile(
-        "Shots",
-        p["Shooting Score Percentile"]
-    )
+    df["Transition Score"] * 0.20 +
 
-with shoot_col2:
+    df["Puck Movement Score"] * 0.15 +
 
-    stat_tile(
-        "Chances",
-        p["Impact Score Percentile"]
-    )
+    df["Defense Score"] * 0.10 +
 
-with shoot_col3:
+    df["Impact Score"] * 0.15
 
-    stat_tile(
-        "Slot Shots",
-        p["Offensive Support Score Percentile"]
-        if selected_position == "D"
-        else p["Playmaking Score Percentile"]
-    )
-
-with shoot_col4:
-
-    stat_tile(
-        "Transition",
-        p["Transition Score Percentile"]
-    )
+)
 
 # =========================
-# PASSES
+# ROUND VALUES
 # =========================
 
-st.markdown("## Passing")
+numeric_cols = df.select_dtypes(
+    include="number"
+).columns
 
-pass_col1, pass_col2, pass_col3, pass_col4 = st.columns(4)
-
-with pass_col1:
-
-    stat_tile(
-        "Playmaking",
-        p["Playmaking Score Percentile"]
-        if selected_position == "F"
-        else p["Offensive Support Score Percentile"]
-    )
-
-with pass_col2:
-
-    stat_tile(
-        "Possession",
-        p["Possession Score Percentile"]
-    )
-
-with pass_col3:
-
-    stat_tile(
-        "Defense",
-        p["Defense Score Percentile"]
-    )
-
-with pass_col4:
-
-    stat_tile(
-        "Impact",
-        p["Impact Score Percentile"]
-    )
+df[numeric_cols] = df[numeric_cols].round(2)
 
 # =========================
-# TRANSITION
+# EXPORT
 # =========================
 
-st.markdown("## Transition")
+df.to_excel(
+    "SDHL_Microstats_Final.xlsx",
+    index=False
+)
 
-trans_col1, trans_col2, trans_col3, trans_col4 = st.columns(4)
-
-with trans_col1:
-
-    stat_tile(
-        "Entries",
-        p["Transition Score Percentile"]
-    )
-
-with trans_col2:
-
-    stat_tile(
-        "Carry",
-        p["Transition Score Percentile"]
-    )
-
-with trans_col3:
-
-    stat_tile(
-        "Breakouts",
-        p["Puck Moving Score Percentile"]
-        if selected_position == "D"
-        else p["Transition Score Percentile"]
-    )
-
-with trans_col4:
-
-    stat_tile(
-        "Overall",
-        p["Impact Score Percentile"]
-    )
-
-# =========================
-# DEFENSE
-# =========================
-
-st.markdown("## Defense")
-
-def_col1, def_col2, def_col3, def_col4 = st.columns(4)
-
-with def_col1:
-
-    stat_tile(
-        "Defense",
-        p["Defense Score Percentile"]
-    )
-
-with def_col2:
-
-    stat_tile(
-        "Possession",
-        p["Possession Score Percentile"]
-    )
-
-with def_col3:
-
-    stat_tile(
-        "Impact",
-        p["Impact Score Percentile"]
-    )
-
-with def_col4:
-
-    stat_tile(
-        "Overall",
-        (
-            p["Impact Score Percentile"] +
-            p["Defense Score Percentile"]
-        ) / 2
-    )
+print("DONE")
+print(df.head())
