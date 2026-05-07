@@ -7,7 +7,7 @@ import streamlit.components.v1 as components
 # =========================
 
 st.set_page_config(
-    page_title="SDHL Player Cards",
+    page_title="SDHL Microstats Card",
     layout="wide"
 )
 
@@ -19,51 +19,13 @@ df = pd.read_excel(
     "SDHL_Player_Cards_Data.xlsx"
 )
 
-# =========================
-# CLEAN COLUMN NAMES
-# =========================
-
 df.columns = df.columns.str.strip()
 
 # =========================
-# ADD TEAM COLUMN IF MISSING
-# =========================
-
-if "Team" not in df.columns:
-
-    df["Team"] = "Lulea/MSSK"
-
-# =========================
-# TEAM LOGOS
-# =========================
-
-team_logos = {
-
-    "Lulea/MSSK": "images/Lulea.png",
-    "Brynas": "images/Brynas.png",
-    "Djurgarden": "images/Djurgarden.png",
-    "Farjestad": "images/Farjestad.png",
-    "Frolunda": "images/Frolunda.png",
-    "HV71": "images/HV71.png",
-    "Linkoping": "images/Linkoping.png",
-    "MODO": "images/MODO.png",
-    "SDE HF": "images/SDE HF.png",
-    "Skelleftea AIK": "images/Skelleftea AIK.png"
-}
-
-# =========================
-# PAGE TITLE
-# =========================
-
-st.title("🏒 SDHL Player Cards")
-
-# =========================
-# SIDEBAR
+# FILTERS
 # =========================
 
 st.sidebar.header("Filters")
-
-# POSITION
 
 positions = sorted(
     df["Position"].dropna().unique()
@@ -77,8 +39,6 @@ selected_position = st.sidebar.selectbox(
 filtered_df = df[
     df["Position"] == selected_position
 ]
-
-# PLAYER
 
 players = sorted(
     filtered_df["Player"].dropna().unique()
@@ -98,36 +58,64 @@ p = filtered_df[
 ].iloc[0]
 
 # =========================
+# TITLE
+# =========================
+
+st.title("🏒 SDHL Microstats Card")
+
+# =========================
+# PLAYER INFO
+# =========================
+
+info_col1, info_col2 = st.columns([1, 4])
+
+with info_col1:
+
+    st.markdown(
+        f"""
+        ## {selected_player}
+
+        ### {p['Team']}
+
+        ### Position: {p['Position']}
+        """
+    )
+
+with info_col2:
+
+    st.empty()
+
+# =========================
 # COLOR FUNCTION
 # =========================
 
-def get_color(percentile):
+def get_tile_color(value):
 
-    if percentile >= 90:
+    if value >= 90:
 
-        return "#00C853"
+        return "#1E3A5F"
 
-    elif percentile >= 75:
+    elif value >= 75:
 
-        return "#64DD17"
+        return "#3B82C4"
 
-    elif percentile >= 50:
+    elif value >= 50:
 
-        return "#FFD600"
+        return "#A7D0F2"
 
-    elif percentile >= 30:
+    elif value >= 30:
 
-        return "#FF9100"
+        return "#F7B7B7"
 
     else:
 
-        return "#FF1744"
+        return "#E63946"
 
 # =========================
-# SKILL BOX FUNCTION
+# TILE FUNCTION
 # =========================
 
-def skill_box(title, value):
+def stat_tile(title, value):
 
     if pd.isna(value):
 
@@ -135,47 +123,38 @@ def skill_box(title, value):
 
     value = int(value)
 
-    color = get_color(value)
+    color = get_tile_color(value)
 
     html_code = f"""
     <div style="
         background:{color};
-        border-radius:16px;
-        padding:18px;
+        border-radius:6px;
+        padding:10px;
+        height:95px;
         text-align:center;
-        margin-bottom:16px;
-        color:white;
-        height:120px;
         display:flex;
         flex-direction:column;
         justify-content:center;
         align-items:center;
-        box-shadow:0 4px 10px rgba(0,0,0,0.25);
         font-family:Arial;
+        color:black;
+        margin-bottom:10px;
     ">
 
         <div style="
-            font-size:16px;
+            font-size:14px;
+            margin-bottom:6px;
             font-weight:600;
-            margin-bottom:8px;
         ">
             {title}
         </div>
 
         <div style="
-            font-size:42px;
+            font-size:34px;
             font-weight:800;
             line-height:1;
         ">
-            {value}
-        </div>
-
-        <div style="
-            font-size:13px;
-            margin-top:6px;
-            opacity:0.9;
-        ">
-            Percentile
+            {value}%
         </div>
 
     </div>
@@ -183,269 +162,158 @@ def skill_box(title, value):
 
     components.html(
         html_code,
-        height=140
+        height=105
     )
 
 # =========================
-# ARCHETYPE
+# CATEGORY TITLES
 # =========================
 
-archetype = "Balanced Player"
+st.markdown("## Shooting")
 
-# FORWARDS
+shoot_col1, shoot_col2, shoot_col3, shoot_col4 = st.columns(4)
 
-if selected_position == "F":
+with shoot_col1:
 
-    if p["Shooting Score Percentile"] >= 90:
-
-        archetype = "Elite Finisher"
-
-    elif p["Playmaking Score Percentile"] >= 90:
-
-        archetype = "Offensive Playmaker"
-
-    elif p["Transition Score Percentile"] >= 90:
-
-        archetype = "Transition Driver"
-
-    elif p["Possession Score Percentile"] >= 90:
-
-        archetype = "Possession Forward"
-
-    elif p["Defense Score Percentile"] >= 90:
-
-        archetype = "Two-Way Forward"
-
-# DEFENSEMEN
-
-if selected_position == "D":
-
-    if p["Puck Moving Score Percentile"] >= 90:
-
-        archetype = "Puck-Moving Defenseman"
-
-    elif p["Transition Score Percentile"] >= 90:
-
-        archetype = "Transition Defenseman"
-
-    elif p["Defense Score Percentile"] >= 90:
-
-        archetype = "Shutdown Defenseman"
-
-    elif p["Offensive Support Score Percentile"] >= 90:
-
-        archetype = "Offensive Defenseman"
-
-# =========================
-# LAYOUT
-# =========================
-
-left_col, right_col = st.columns([1, 3])
-
-# =========================
-# LEFT SIDE
-# =========================
-
-with left_col:
-
-    # TEAM LOGO
-
-    if p["Team"] in team_logos:
-
-        st.image(
-            team_logos[p["Team"]],
-            width=170
-        )
-
-    # PLAYER NAME
-
-    st.markdown(
-        f"# {selected_player}"
+    stat_tile(
+        "Shots",
+        p["Shooting Score Percentile"]
     )
 
-    # TEAM
+with shoot_col2:
 
-    st.markdown(
-        f"### {p['Team']}"
+    stat_tile(
+        "Chances",
+        p["Impact Score Percentile"]
     )
 
-    # POSITION
+with shoot_col3:
 
-    st.markdown(
-        f"### Position: {p['Position']}"
+    stat_tile(
+        "Slot Shots",
+        p["Offensive Support Score Percentile"]
+        if selected_position == "D"
+        else p["Playmaking Score Percentile"]
     )
 
-    st.markdown("---")
+with shoot_col4:
 
-    # ARCHETYPE
-
-    st.subheader("🧬 Archetype")
-
-    st.success(archetype)
-
-# =========================
-# RIGHT SIDE
-# =========================
-
-with right_col:
-
-    st.subheader("📊 Skill Profile")
-
-    # FORWARDS
-
-    if selected_position == "F":
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-
-            skill_box(
-                "Shooting",
-                p["Shooting Score Percentile"]
-            )
-
-            skill_box(
-                "Possession",
-                p["Possession Score Percentile"]
-            )
-
-        with col2:
-
-            skill_box(
-                "Playmaking",
-                p["Playmaking Score Percentile"]
-            )
-
-            skill_box(
-                "Defense",
-                p["Defense Score Percentile"]
-            )
-
-        with col3:
-
-            skill_box(
-                "Transition",
-                p["Transition Score Percentile"]
-            )
-
-            skill_box(
-                "Impact",
-                p["Impact Score Percentile"]
-            )
-
-    # DEFENSEMEN
-
-    if selected_position == "D":
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-
-            skill_box(
-                "Puck Moving",
-                p["Puck Moving Score Percentile"]
-            )
-
-            skill_box(
-                "Possession",
-                p["Possession Score Percentile"]
-            )
-
-        with col2:
-
-            skill_box(
-                "Transition",
-                p["Transition Score Percentile"]
-            )
-
-            skill_box(
-                "Defense",
-                p["Defense Score Percentile"]
-            )
-
-        with col3:
-
-            skill_box(
-                "Offensive Support",
-                p["Offensive Support Score Percentile"]
-            )
-
-            skill_box(
-                "Impact",
-                p["Impact Score Percentile"]
-            )
-
-# =========================
-# SUMMARY
-# =========================
-
-st.markdown("---")
-
-st.subheader("🔍 Automated Summary")
-
-summary = []
-
-# FORWARDS
-
-if selected_position == "F":
-
-    if p["Shooting Score Percentile"] >= 90:
-
-        summary.append(
-            "Elite shooting profile with dangerous scoring ability."
-        )
-
-    if p["Playmaking Score Percentile"] >= 75:
-
-        summary.append(
-            "Creates offensive opportunities consistently through passing and vision."
-        )
-
-    if p["Transition Score Percentile"] >= 75:
-
-        summary.append(
-            "Strong transition player capable of carrying play through the neutral zone."
-        )
-
-    if p["Defense Score Percentile"] >= 75:
-
-        summary.append(
-            "Positive defensive impact relative to league peers."
-        )
-
-# DEFENSEMEN
-
-if selected_position == "D":
-
-    if p["Puck Moving Score Percentile"] >= 90:
-
-        summary.append(
-            "Elite puck-moving defenseman with strong breakout ability."
-        )
-
-    if p["Transition Score Percentile"] >= 75:
-
-        summary.append(
-            "Drives transition play effectively from the defensive zone."
-        )
-
-    if p["Defense Score Percentile"] >= 75:
-
-        summary.append(
-            "Strong defensive impact player."
-        )
-
-    if p["Offensive Support Score Percentile"] >= 75:
-
-        summary.append(
-            "Provides consistent offensive support from the blue line."
-        )
-
-# DISPLAY SUMMARY
-
-for line in summary:
-
-    st.markdown(
-        f"- {line}"
+    stat_tile(
+        "Transition",
+        p["Transition Score Percentile"]
     )
-    
+
+# =========================
+# PASSES
+# =========================
+
+st.markdown("## Passing")
+
+pass_col1, pass_col2, pass_col3, pass_col4 = st.columns(4)
+
+with pass_col1:
+
+    stat_tile(
+        "Playmaking",
+        p["Playmaking Score Percentile"]
+        if selected_position == "F"
+        else p["Offensive Support Score Percentile"]
+    )
+
+with pass_col2:
+
+    stat_tile(
+        "Possession",
+        p["Possession Score Percentile"]
+    )
+
+with pass_col3:
+
+    stat_tile(
+        "Defense",
+        p["Defense Score Percentile"]
+    )
+
+with pass_col4:
+
+    stat_tile(
+        "Impact",
+        p["Impact Score Percentile"]
+    )
+
+# =========================
+# TRANSITION
+# =========================
+
+st.markdown("## Transition")
+
+trans_col1, trans_col2, trans_col3, trans_col4 = st.columns(4)
+
+with trans_col1:
+
+    stat_tile(
+        "Entries",
+        p["Transition Score Percentile"]
+    )
+
+with trans_col2:
+
+    stat_tile(
+        "Carry",
+        p["Transition Score Percentile"]
+    )
+
+with trans_col3:
+
+    stat_tile(
+        "Breakouts",
+        p["Puck Moving Score Percentile"]
+        if selected_position == "D"
+        else p["Transition Score Percentile"]
+    )
+
+with trans_col4:
+
+    stat_tile(
+        "Overall",
+        p["Impact Score Percentile"]
+    )
+
+# =========================
+# DEFENSE
+# =========================
+
+st.markdown("## Defense")
+
+def_col1, def_col2, def_col3, def_col4 = st.columns(4)
+
+with def_col1:
+
+    stat_tile(
+        "Defense",
+        p["Defense Score Percentile"]
+    )
+
+with def_col2:
+
+    stat_tile(
+        "Possession",
+        p["Possession Score Percentile"]
+    )
+
+with def_col3:
+
+    stat_tile(
+        "Impact",
+        p["Impact Score Percentile"]
+    )
+
+with def_col4:
+
+    stat_tile(
+        "Overall",
+        (
+            p["Impact Score Percentile"] +
+            p["Defense Score Percentile"]
+        ) / 2
+    )
