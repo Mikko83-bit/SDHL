@@ -15,6 +15,14 @@ st.set_page_config(layout="wide")
 st.title("🧠 Game Score Comparison")
 
 # =========================
+# TEAM LOGOS
+# =========================
+
+team_logos = {
+    "Lulea/MSSK": "images/lulea.png"
+}
+
+# =========================
 # LOAD DATA
 # =========================
 
@@ -36,7 +44,10 @@ numeric_columns = [
 ]
 
 for col in numeric_columns:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
+    df[col] = pd.to_numeric(
+        df[col],
+        errors="coerce"
+    )
 
 df = df.dropna(subset=numeric_columns)
 
@@ -48,7 +59,9 @@ st.sidebar.header("Filters")
 
 # POSITION FILTER
 
-positions = sorted(df["Position"].unique())
+positions = sorted(
+    df["Position"].unique()
+)
 
 selected_position = st.sidebar.selectbox(
     "Position",
@@ -124,6 +137,7 @@ metrics = [
     "xG/60",
     "Net xG",
     "Game Score",
+    "Time on ice"
 ]
 
 # =========================
@@ -219,11 +233,26 @@ st.subheader("🏒 Player Cards")
 
 card_col1, card_col2 = st.columns(2)
 
+# =========================
 # PLAYER 1 CARD
+# =========================
 
 with card_col1:
 
-    st.markdown(f"## {player1}")
+    # TEAM LOGO
+
+    if p1["Team"] in team_logos:
+
+        st.image(
+            team_logos[p1["Team"]],
+            width=120
+        )
+
+    # PLAYER INFO
+
+    st.markdown(
+        f"## {player1}"
+    )
 
     st.markdown(
         f"### {p1['Team']} | {p1['Position']}"
@@ -249,11 +278,26 @@ with card_col1:
         round(p1["Time on ice"], 1)
     )
 
+# =========================
 # PLAYER 2 CARD
+# =========================
 
 with card_col2:
 
-    st.markdown(f"## {player2}")
+    # TEAM LOGO
+
+    if p2["Team"] in team_logos:
+
+        st.image(
+            team_logos[p2["Team"]],
+            width=120
+        )
+
+    # PLAYER INFO
+
+    st.markdown(
+        f"## {player2}"
+    )
 
     st.markdown(
         f"### {p2['Team']} | {p2['Position']}"
