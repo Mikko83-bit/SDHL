@@ -114,12 +114,10 @@ for col in numeric_columns:
         ).fillna(0)
 
 # ==================================================
-# SIDEBAR FILTERS
+# SAMPLE FILTERS
 # ==================================================
 
 st.sidebar.header("Filters")
-
-# SAMPLE FILTERS
 
 st.sidebar.subheader("Sample Filters")
 
@@ -143,32 +141,6 @@ df = df[
     (df["Time on ice"] >= min_toi) &
     (df["Games played"] >= min_games)
 ]
-
-# POSITION FILTER
-
-positions = sorted(
-    df["Position"].dropna().unique()
-)
-
-selected_position = st.sidebar.selectbox(
-    "Position",
-    positions
-)
-
-filtered_df = df[
-    df["Position"] == selected_position
-]
-
-# PLAYER FILTER
-
-players = sorted(
-    filtered_df["Player"].dropna().unique()
-)
-
-selected_player = st.sidebar.selectbox(
-    "Player",
-    players
-)
 
 # ==================================================
 # CREATE POSITION-BASED PERCENTILES
@@ -225,7 +197,9 @@ for metric in percentile_metrics:
 
         )
 
+# ==================================================
 # REVERSE NEGATIVE METRIC
+# ==================================================
 
 if "Opponent's xG when on ice" in df.columns:
 
@@ -238,6 +212,36 @@ if "Opponent's xG when on ice" in df.columns:
         ].rank(pct=True) * 100
 
     )
+
+# ==================================================
+# POSITION FILTER
+# ==================================================
+
+positions = sorted(
+    df["Position"].dropna().unique()
+)
+
+selected_position = st.sidebar.selectbox(
+    "Position",
+    positions
+)
+
+filtered_df = df[
+    df["Position"] == selected_position
+]
+
+# ==================================================
+# PLAYER FILTER
+# ==================================================
+
+players = sorted(
+    filtered_df["Player"].dropna().unique()
+)
+
+selected_player = st.sidebar.selectbox(
+    "Player",
+    players
+)
 
 # ==================================================
 # PLAYER DATA
