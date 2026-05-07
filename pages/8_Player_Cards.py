@@ -25,63 +25,11 @@ df = pd.read_excel(
 
 df.columns = df.columns.str.strip()
 
-# CLEAN POSITION
-
 df["Position"] = (
     df["Position"]
     .astype(str)
     .str.strip()
 )
-
-# ==================================================
-# CONVERT NUMERIC COLUMNS
-# ==================================================
-
-numeric_columns = [
-
-    "Goals/60",
-    "Assists/60",
-    "Shots/60",
-    "xG (Expected goals)/60",
-
-    "Pre-shots passes/60",
-    "Passes to the slot/60",
-    "First assist/60",
-
-    "Entries/60",
-    "Entries via stickhandling/60",
-    "Entries via pass/60",
-
-    "Breakouts/60",
-    "Breakouts via stickhandling/60",
-    "Breakouts via pass/60",
-
-    "Takeaways/60",
-    "Takeaways in DZ",
-
-    "Puck touches/60",
-    "Puck control time/60",
-
-    "Scoring chances - total/60",
-    "Inner slot shots - total/60",
-
-    "Goals/60",
-
-    "Opponent's xG when on ice",
-
-    "Net xG (xG player on - opp. team's xG)",
-
-    "Team xG when on ice"
-]
-
-for col in numeric_columns:
-
-    if col in df.columns:
-
-        df[col] = pd.to_numeric(
-            df[col],
-            errors="coerce"
-        ).fillna(0)
 
 # ==================================================
 # FIX % COLUMNS
@@ -106,6 +54,7 @@ for col in percent_columns:
             .astype(str)
             .str.replace("%", "")
             .str.replace(",", ".")
+
         )
 
         df[col] = pd.to_numeric(
@@ -114,7 +63,115 @@ for col in percent_columns:
         ).fillna(0)
 
 # ==================================================
-# CREATE PERCENTILES
+# CONVERT NUMERIC
+# ==================================================
+
+numeric_columns = [
+
+    "Time on ice",
+    "Games played",
+
+    "Goals/60",
+    "Assists/60",
+    "Shots/60",
+    "xG (Expected goals)/60",
+
+    "Scoring chances - total/60",
+    "Inner slot shots - total/60",
+
+    "Pre-shots passes/60",
+    "Passes to the slot/60",
+    "First assist/60",
+
+    "Entries/60",
+    "Entries via stickhandling/60",
+    "Entries via pass/60",
+
+    "Breakouts/60",
+    "Breakouts via stickhandling/60",
+    "Breakouts via pass/60",
+
+    "Puck touches/60",
+    "Puck control time/60",
+
+    "Takeaways/60",
+    "Takeaways in DZ",
+
+    "Opponent's xG when on ice",
+
+    "Net xG (xG player on - opp. team's xG)",
+    "Team xG when on ice"
+
+]
+
+for col in numeric_columns:
+
+    if col in df.columns:
+
+        df[col] = pd.to_numeric(
+            df[col],
+            errors="coerce"
+        ).fillna(0)
+
+# ==================================================
+# SIDEBAR FILTERS
+# ==================================================
+
+st.sidebar.header("Filters")
+
+# SAMPLE FILTERS
+
+st.sidebar.subheader("Sample Filters")
+
+min_toi = st.sidebar.slider(
+    "Minimum TOI",
+    min_value=0,
+    max_value=int(df["Time on ice"].max()),
+    value=200,
+    step=10
+)
+
+min_games = st.sidebar.slider(
+    "Minimum Games",
+    min_value=0,
+    max_value=int(df["Games played"].max()),
+    value=5,
+    step=1
+)
+
+df = df[
+    (df["Time on ice"] >= min_toi) &
+    (df["Games played"] >= min_games)
+]
+
+# POSITION FILTER
+
+positions = sorted(
+    df["Position"].dropna().unique()
+)
+
+selected_position = st.sidebar.selectbox(
+    "Position",
+    positions
+)
+
+filtered_df = df[
+    df["Position"] == selected_position
+]
+
+# PLAYER FILTER
+
+players = sorted(
+    filtered_df["Player"].dropna().unique()
+)
+
+selected_player = st.sidebar.selectbox(
+    "Player",
+    players
+)
+
+# ==================================================
+# CREATE POSITION-BASED PERCENTILES
 # ==================================================
 
 percentile_metrics = [
@@ -163,7 +220,7 @@ for metric in percentile_metrics:
 
         df[f"{metric} Percentile"] = (
 
-            df[metric]
+            df.groupby("Position")[metric]
             .rank(pct=True) * 100
 
         )
@@ -176,47 +233,14 @@ if "Opponent's xG when on ice" in df.columns:
 
         100 -
 
-        df["Opponent's xG when on ice"]
-        .rank(pct=True) * 100
+        df.groupby("Position")[
+            "Opponent's xG when on ice"
+        ].rank(pct=True) * 100
 
     )
 
 # ==================================================
-# TITLE
-# ==================================================
-
-st.title("🏒 SDHL Microstats Cards")
-
-# ==================================================
-# SIDEBAR
-# ==================================================
-
-st.sidebar.header("Filters")
-
-positions = sorted(
-    df["Position"].dropna().unique()
-)
-
-selected_position = st.sidebar.selectbox(
-    "Position",
-    positions
-)
-
-filtered_df = df[
-    df["Position"] == selected_position
-]
-
-players = sorted(
-    filtered_df["Player"].dropna().unique()
-)
-
-selected_player = st.sidebar.selectbox(
-    "Player",
-    players
-)
-
-# ==================================================
-# PLAYER
+# PLAYER DATA
 # ==================================================
 
 p = filtered_df[
@@ -243,7 +267,13 @@ team_logos = {
 }
 
 # ==================================================
-# COLORS
+# PAGE TITLE
+# ==================================================
+
+st.title("🏒 SDHL Microstats Cards")
+
+# ==================================================
+# COLOR FUNCTION
 # ==================================================
 
 def get_color(value):
@@ -254,22 +284,22 @@ def get_color(value):
 
     elif value >= 75:
 
-        return "#3B82C4"
+        return "#2E6DB4"
 
     elif value >= 50:
 
-        return "#A7D0F2"
+        return "#9BC7F2"
 
     elif value >= 30:
 
-        return "#F7B7B7"
+        return "#F4B6B6"
 
     else:
 
         return "#D94B4B"
 
 # ==================================================
-# TILE
+# TILE FUNCTION
 # ==================================================
 
 def stat_tile(title, value):
@@ -300,8 +330,8 @@ def stat_tile(title, value):
         <div style="
             font-size:13px;
             font-weight:600;
-            margin-bottom:6px;
             text-align:center;
+            margin-bottom:6px;
         ">
             {title}
         </div>
