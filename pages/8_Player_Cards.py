@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 
 # =========================
 # PAGE CONFIG
@@ -123,7 +124,7 @@ def get_color(percentile):
         return "#FF1744"
 
 # =========================
-# SKILL BOX
+# SKILL BOX FUNCTION
 # =========================
 
 def skill_box(title, value):
@@ -136,7 +137,7 @@ def skill_box(title, value):
 
     color = get_color(value)
 
-    html = f"""
+    html_code = f"""
     <div style="
         background:{color};
         border-radius:16px;
@@ -150,6 +151,7 @@ def skill_box(title, value):
         justify-content:center;
         align-items:center;
         box-shadow:0 4px 10px rgba(0,0,0,0.25);
+        font-family:Arial;
     ">
 
         <div style="
@@ -179,9 +181,9 @@ def skill_box(title, value):
     </div>
     """
 
-    st.markdown(
-        html,
-        unsafe_allow_html=True
+    components.html(
+        html_code,
+        height=140
     )
 
 # =========================
@@ -255,21 +257,27 @@ with left_col:
             width=170
         )
 
-    # PLAYER INFO
+    # PLAYER NAME
 
     st.markdown(
         f"# {selected_player}"
     )
 
+    # TEAM
+
     st.markdown(
         f"### {p['Team']}"
     )
+
+    # POSITION
 
     st.markdown(
         f"### Position: {p['Position']}"
     )
 
     st.markdown("---")
+
+    # ARCHETYPE
 
     st.subheader("🧬 Archetype")
 
