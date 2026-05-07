@@ -233,13 +233,9 @@ st.subheader("🏒 Player Cards")
 
 card_col1, card_col2 = st.columns(2)
 
-# =========================
 # PLAYER 1 CARD
-# =========================
 
 with card_col1:
-
-    # TEAM LOGO
 
     if p1["Team"] in team_logos:
 
@@ -247,8 +243,6 @@ with card_col1:
             team_logos[p1["Team"]],
             width=120
         )
-
-    # PLAYER INFO
 
     st.markdown(
         f"## {player1}"
@@ -278,13 +272,9 @@ with card_col1:
         round(p1["Time on ice"], 1)
     )
 
-# =========================
 # PLAYER 2 CARD
-# =========================
 
 with card_col2:
-
-    # TEAM LOGO
 
     if p2["Team"] in team_logos:
 
@@ -292,8 +282,6 @@ with card_col2:
             team_logos[p2["Team"]],
             width=120
         )
-
-    # PLAYER INFO
 
     st.markdown(
         f"## {player2}"
@@ -338,18 +326,40 @@ comparison_metrics = [
     "Time on ice"
 ]
 
-comparison_df = pd.DataFrame({
-    "Metric": comparison_metrics,
-    player1: [
-        round(p1[m], 2)
-        for m in comparison_metrics
-    ],
-    player2: [
-        round(p2[m], 2)
-        for m in comparison_metrics
-    ]
-})
+table_rows = []
 
-# COMPACT TABLE
+for metric in comparison_metrics:
+
+    value1 = round(p1[metric], 2)
+    value2 = round(p2[metric], 2)
+
+    # BETTER / WORSE COLORS
+
+    if value1 > value2:
+
+        p1_display = f"🟢 {value1}"
+        p2_display = f"🔴 {value2}"
+
+    elif value2 > value1:
+
+        p1_display = f"🔴 {value1}"
+        p2_display = f"🟢 {value2}"
+
+    else:
+
+        p1_display = f"⚪ {value1}"
+        p2_display = f"⚪ {value2}"
+
+    table_rows.append({
+        "Metric": metric,
+        player1: p1_display,
+        player2: p2_display
+    })
+
+comparison_df = pd.DataFrame(table_rows)
+
+# =========================
+# DISPLAY TABLE
+# =========================
 
 st.table(comparison_df)
