@@ -124,7 +124,6 @@ metrics = [
     "xG/60",
     "Net xG",
     "Game Score",
-    "Time on ice"
 ]
 
 # =========================
