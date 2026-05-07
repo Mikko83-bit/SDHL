@@ -131,8 +131,6 @@ p2 = filtered_position_df[
 # =========================
 # RADAR METRICS
 # =========================
-# TOI REMOVED FROM RADAR
-# =========================
 
 metrics = [
     "Goals/60",
@@ -352,7 +350,6 @@ comparison_df = pd.DataFrame({
     ]
 })
 
-st.dataframe(
-    comparison_df,
-    use_container_width=True
-)
+# COMPACT TABLE
+
+st.table(comparison_df)
