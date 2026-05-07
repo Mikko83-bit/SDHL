@@ -1,5 +1,4 @@
 import pandas as pd
-from scipy.stats import percentileofscore
 
 # =========================
 # LOAD DATA
@@ -10,7 +9,7 @@ df = pd.read_excel(
 )
 
 # =========================
-# CLEAN COLUMNS
+# CLEAN COLUMN NAMES
 # =========================
 
 df.columns = df.columns.str.strip()
@@ -26,6 +25,52 @@ df = df.fillna(0)
 # =========================
 
 toi = "Time on ice"
+
+# =========================
+# CONVERT NUMERIC COLUMNS
+# =========================
+
+numeric_columns = [
+
+    "Goals",
+    "Assists",
+    "Shots",
+    "xG (Expected goals)",
+    "Puck battles",
+    "Puck battles won",
+    "Pre-shots passes",
+    "Passes to the slot",
+    "Entries",
+    "Breakouts",
+    "Takeaways",
+    "Puck losses",
+    "Shots on goal",
+    "Inner slot shots - total",
+    "Scoring chances - total",
+    "First assist",
+    "Accurate passes",
+    "Entries via stickhandling",
+    "Entries via pass",
+    "Breakouts via stickhandling",
+    "Breakouts via pass",
+    "Puck touches",
+    "Puck control time",
+    "Takeaways in DZ",
+    "Opponent's xG when on ice",
+    "Net xG (xG player on - opp. team's xG)",
+    "Team xG when on ice",
+    "CORSI for, %",
+    "Fenwick for, %",
+    "Accurate passes, %",
+    "Puck battles won, %"
+]
+
+for col in numeric_columns:
+
+    df[col] = pd.to_numeric(
+        df[col],
+        errors="coerce"
+    ).fillna(0)
 
 # =========================
 # CREATE PER60 STATS
@@ -56,16 +101,19 @@ per60_stats = [
     "Breakouts via pass",
     "Puck touches",
     "Puck control time"
+
 ]
 
 for stat in per60_stats:
 
     df[f"{stat}/60"] = (
+
         df[stat] / df[toi]
+
     ) * 60
 
 # =========================
-# SHOOTING METRICS
+# METRIC GROUPS
 # =========================
 
 shooting_metrics = [
@@ -77,10 +125,6 @@ shooting_metrics = [
 
 ]
 
-# =========================
-# PLAYMAKING METRICS
-# =========================
-
 playmaking_metrics = [
 
     "Pre-shots passes/60",
@@ -89,10 +133,6 @@ playmaking_metrics = [
     "Accurate passes, %"
 
 ]
-
-# =========================
-# TRANSITION METRICS
-# =========================
 
 transition_metrics = [
 
@@ -103,10 +143,6 @@ transition_metrics = [
 
 ]
 
-# =========================
-# PUCK MOVEMENT METRICS
-# =========================
-
 puck_movement_metrics = [
 
     "Breakouts via pass/60",
@@ -116,10 +152,6 @@ puck_movement_metrics = [
 
 ]
 
-# =========================
-# DEFENSE METRICS
-# =========================
-
 defense_metrics = [
 
     "Takeaways/60",
@@ -128,10 +160,6 @@ defense_metrics = [
     "Opponent's xG when on ice"
 
 ]
-
-# =========================
-# IMPACT METRICS
-# =========================
 
 impact_metrics = [
 
@@ -164,42 +192,27 @@ all_metrics = (
 
 for metric in all_metrics:
 
-    # NUMERIC
+    df[f"{metric} Percentile"] = (
 
-    df[metric] = pd.to_numeric(
-        df[metric],
-        errors="coerce"
-    ).fillna(0)
-
-    # REVERSE BAD METRICS
-
-    reverse_metric = (
-
-        metric == "Opponent's xG when on ice"
+        df[metric].rank(
+            pct=True
+        ) * 100
 
     )
 
-    if reverse_metric:
+# =========================
+# REVERSE BAD METRIC
+# =========================
 
-        df[f"{metric} Percentile"] = df[metric].apply(
+df["Opponent's xG when on ice Percentile"] = (
 
-            lambda x: 100 - percentileofscore(
-                df[metric],
-                x
-            )
+    100 -
 
-        )
+    df["Opponent's xG when on ice"].rank(
+        pct=True
+    ) * 100
 
-    else:
-
-        df[f"{metric} Percentile"] = df[metric].apply(
-
-            lambda x: percentileofscore(
-                df[metric],
-                x
-            )
-
-        )
+)
 
 # =========================
 # CREATE SKILL SCORES
@@ -216,7 +229,9 @@ def average_percentiles(metrics):
 
     return df[percentile_cols].mean(axis=1)
 
-# FORWARDS
+# =========================
+# SKILL SCORES
+# =========================
 
 df["Shooting Score"] = average_percentiles(
     shooting_metrics
@@ -243,7 +258,7 @@ df["Impact Score"] = average_percentiles(
 )
 
 # =========================
-# CREATE OVERALL
+# OVERALL SCORE
 # =========================
 
 df["Overall Score"] = (
@@ -283,3 +298,4 @@ df.to_excel(
 
 print("DONE")
 print(df.head())
+
