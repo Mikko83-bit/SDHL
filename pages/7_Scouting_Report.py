@@ -133,7 +133,9 @@ st.subheader("🏒 Player Profile")
 
 col1, col2 = st.columns([1, 2])
 
+# =========================
 # LEFT SIDE
+# =========================
 
 with col1:
 
@@ -183,18 +185,108 @@ with col1:
     )
 
 # =========================
-# SCOUTING REPORT
+# RIGHT SIDE
 # =========================
 
 with col2:
+
+    # =========================
+    # PLAYER ARCHETYPE
+    # =========================
+
+    st.subheader("🧬 Player Archetype")
+
+    archetype = "Balanced Player"
+
+    archetype_description = (
+        "Balanced player profile without one clearly dominant offensive trait."
+    )
+
+    # ELITE FINISHER
+
+    if (
+        p["Goals/60"] >= 1.0
+        and
+        p["xG/60"] >= 0.9
+    ):
+
+        archetype = "Elite Finisher"
+
+        archetype_description = (
+            "High-end scoring threat who consistently attacks dangerous scoring areas and finishes chances efficiently."
+        )
+
+    # PLAYMAKER
+
+    elif (
+        p["Assists/60"] >= 1.0
+        and
+        p["Goals/60"] < 1.0
+    ):
+
+        archetype = "Offensive Playmaker"
+
+        archetype_description = (
+            "Creative offensive player who drives production through passing and chance creation."
+        )
+
+    # TWO-WAY
+
+    elif (
+        p["Net xG"] >= 2
+        and
+        p["Game Score"] >= 5
+    ):
+
+        archetype = "Two-Way Impact Player"
+
+        archetype_description = (
+            "Reliable impact player who positively drives overall on-ice results at both ends."
+        )
+
+    # SHOT CREATOR
+
+    elif (
+        p["xG/60"] >= 1.0
+        and
+        p["Goals/60"] < 0.8
+    ):
+
+        archetype = "Shot Creator"
+
+        archetype_description = (
+            "Generates strong offensive opportunities and dangerous scoring chances consistently."
+        )
+
+    # DEPTH PLAYER
+
+    elif (
+        p["Game Score"] < 3
+    ):
+
+        archetype = "Depth Offensive Player"
+
+        archetype_description = (
+            "Currently projects more as a supporting offensive contributor."
+        )
+
+    st.markdown(
+        f"## {archetype}"
+    )
+
+    st.info(
+        archetype_description
+    )
+
+    # =========================
+    # AUTOMATED SCOUTING REPORT
+    # =========================
 
     st.subheader("🔍 Automated Scouting Report")
 
     report = []
 
-    # =========================
     # SCORING
-    # =========================
 
     if p["Goals/60"] >= 1.0:
 
@@ -220,9 +312,7 @@ with col2:
             "Limited scoring production profile."
         )
 
-    # =========================
     # PLAYMAKING
-    # =========================
 
     if p["Assists/60"] >= 1.0:
 
@@ -242,9 +332,7 @@ with col2:
             "Provides moderate offensive support through puck movement."
         )
 
-    # =========================
     # SHOT QUALITY
-    # =========================
 
     if p["xG/60"] >= 1.0:
 
@@ -258,9 +346,7 @@ with col2:
             "Generates quality offensive opportunities regularly."
         )
 
-    # =========================
     # IMPACT
-    # =========================
 
     if p["Net xG"] >= 2:
 
@@ -280,9 +366,7 @@ with col2:
             "Negative overall impact results based on current metrics."
         )
 
-    # =========================
     # GAME SCORE
-    # =========================
 
     if p["Game Score"] >= 8:
 
@@ -308,9 +392,7 @@ with col2:
             "Current profile suggests depth-level offensive contribution."
         )
 
-    # =========================
     # TOI
-    # =========================
 
     if p["Time on ice"] >= 700:
 
@@ -324,9 +406,7 @@ with col2:
             "Regularly deployed in meaningful game situations."
         )
 
-    # =========================
     # DISPLAY REPORT
-    # =========================
 
     for sentence in report:
 
