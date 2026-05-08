@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📝 Scouting Report")
+st.title("📝 Advanced Scouting Report")
 
 # ==================================================
 # TEAM LOGOS
@@ -106,8 +106,6 @@ df["Puck Movement Score"] = (
 
 df["Overall Score"] = 0.0
 
-# FORWARDS
-
 forward_mask = df["Position"] == "F"
 
 df.loc[forward_mask, "Overall Score"] = (
@@ -125,8 +123,6 @@ df.loc[forward_mask, "Overall Score"] = (
     df.loc[forward_mask, "Impact Score"] * 0.10
 
 )
-
-# DEFENSEMEN
 
 defense_mask = df["Position"] == "D"
 
@@ -223,10 +219,6 @@ st.subheader("🏒 Player Overview")
 
 col1, col2 = st.columns([1,3])
 
-# ==================================================
-# LEFT SIDE
-# ==================================================
-
 with col1:
 
     if p["Team"] in team_logos:
@@ -236,15 +228,9 @@ with col1:
             width=120
         )
 
-# ==================================================
-# RIGHT SIDE
-# ==================================================
-
 with col2:
 
-    st.markdown(
-        f"## {selected_player}"
-    )
+    st.markdown(f"## {selected_player}")
 
     st.markdown(
         f"### {p['Team']} | {p['Position']}"
@@ -261,48 +247,128 @@ with col2:
     )
 
 # ==================================================
-# ROLE DETECTION
+# PLAYER IDENTITY ENGINE
 # ==================================================
 
-role = "Balanced Player"
+roles = []
+
+# TRANSITION CARRIER
 
 if (
-    p["Transition Score"] >= 75
+
+    p["Entries via stickhandling/60 Percentile"] >= 80
     and
-    p["Playmaking Score"] >= 65
+    p["Breakouts via stickhandling/60 Percentile"] >= 70
+
 ):
 
-    role = "Transition Playmaker"
+    roles.append(
+        "Transition Carrier"
+    )
 
-elif (
-    p["Shooting Score"] >= 75
-):
+# PLAYMAKER
 
-    role = "Finishing Forward"
+if (
 
-elif (
-    p["Defense Score"] >= 75
+    p["Pre-shots passes/60 Percentile"] >= 75
     and
-    p["Impact Score"] >= 70
+    p["First assist/60 Percentile"] >= 75
+
 ):
 
-    role = "Two-Way Player"
+    roles.append(
+        "Offensive Playmaker"
+    )
 
-elif (
+# FINISHER
+
+if (
+
+    p["Goals/60 Percentile"] >= 80
+    and
+    p["xG (Expected goals)/60 Percentile"] >= 75
+
+):
+
+    roles.append(
+        "Finishing Threat"
+    )
+
+# POSSESSION DRIVER
+
+if (
+
+    p["OZ possession/60 Percentile"] >= 80
+    and
+    p["Puck touches/60 Percentile"] >= 75
+
+):
+
+    roles.append(
+        "Possession Driver"
+    )
+
+# PUCK MOVING DEFENDER
+
+if (
+
     p["Puck Movement Score"] >= 75
+    and
+    p["Breakouts via pass/60 Percentile"] >= 75
+
 ):
 
-    role = "Puck Moving Defender"
+    roles.append(
+        "Puck Moving Defender"
+    )
 
-elif (
-    p["Playmaking Score"] >= 75
+# TWO-WAY DRIVER
+
+if (
+
+    p["Impact Score"] >= 75
+    and
+    p["Defense Score"] >= 65
+    and
+    p["Transition Score"] >= 65
+
 ):
 
-    role = "Offensive Playmaker"
+    roles.append(
+        "Two-Way Driver"
+    )
 
-st.markdown(
-    f"### Role: {role}"
-)
+# DEFENSIVE DISRUPTOR
+
+if (
+
+    p["Takeaways/60 Percentile"] >= 80
+    and
+    p["Opponent's xG when on ice Percentile"] >= 70
+
+):
+
+    roles.append(
+        "Defensive Disruptor"
+    )
+
+# DEFAULT
+
+if len(roles) == 0:
+
+    roles.append(
+        "Balanced Player"
+    )
+
+# ==================================================
+# DISPLAY ROLES
+# ==================================================
+
+st.markdown("### 🧬 Player Identity")
+
+for role in roles:
+
+    st.markdown(f"• {role}")
 
 # ==================================================
 # STRENGTHS & WEAKNESSES
@@ -322,82 +388,88 @@ with strength_col:
 
     strengths = []
 
-    if p["Transition Score"] >= 80:
+    # TRANSITION
+
+    if p["Entries via stickhandling/60 Percentile"] >= 85:
 
         strengths.append(
-            "Elite transition ability"
+            "Elite puck carrying transition ability"
         )
 
-    elif p["Transition Score"] >= 65:
+    if p["Breakouts via pass/60 Percentile"] >= 80:
 
         strengths.append(
-            "Strong transition game"
+            "High-end passing breakout ability"
         )
 
-    if p["Puck Movement Score"] >= 80:
+    # POSSESSION
+
+    if p["OZ possession/60 Percentile"] >= 80:
 
         strengths.append(
-            "Excellent puck movement under pressure"
+            "Excellent offensive zone possession impact"
         )
 
-    elif p["Puck Movement Score"] >= 65:
+    if p["Puck touches/60 Percentile"] >= 80:
 
         strengths.append(
-            "Reliable puck moving ability"
+            "Highly active puck involvement profile"
         )
 
-    if p["Playmaking Score"] >= 80:
+    # PLAYMAKING
+
+    if p["Pre-shots passes/60 Percentile"] >= 80:
 
         strengths.append(
-            "Elite offensive playmaking"
+            "Elite pre-shot passing creation"
         )
 
-    elif p["Playmaking Score"] >= 65:
+    if p["Passes to the slot/60 Percentile"] >= 80:
 
         strengths.append(
-            "Strong offensive creation"
+            "Creates dangerous slot passing opportunities"
         )
 
-    if p["Shooting Score"] >= 80:
+    # SHOOTING
+
+    if p["Goals/60 Percentile"] >= 80:
 
         strengths.append(
-            "High-end finishing ability"
+            "Strong finishing ability"
         )
 
-    elif p["Shooting Score"] >= 65:
+    if p["xG (Expected goals)/60 Percentile"] >= 80:
 
         strengths.append(
-            "Consistent scoring threat"
+            "Consistently attacks dangerous scoring areas"
         )
 
-    if p["Defense Score"] >= 80:
+    # DEFENSE
+
+    if p["Takeaways/60 Percentile"] >= 80:
 
         strengths.append(
-            "Excellent defensive impact"
+            "Strong defensive puck disruption"
         )
 
-    elif p["Defense Score"] >= 65:
+    if p["Defense Score"] >= 75:
 
         strengths.append(
-            "Reliable defensive play"
+            "Reliable defensive impact profile"
         )
+
+    # IMPACT
 
     if p["Impact Score"] >= 80:
 
         strengths.append(
-            "Drives positive overall team impact"
-        )
-
-    elif p["Impact Score"] >= 65:
-
-        strengths.append(
-            "Positive on-ice impact profile"
+            "Drives strong positive on-ice impact"
         )
 
     if len(strengths) == 0:
 
         strengths.append(
-            "No clearly elite strengths identified."
+            "No major standout strengths statistically identified."
         )
 
     for item in strengths:
@@ -414,40 +486,62 @@ with weakness_col:
 
     weaknesses = []
 
+    # TRANSITION
+
     if p["Transition Score"] <= 35:
 
         weaknesses.append(
-            "Limited transition impact"
+            "Limited transition involvement"
         )
 
-    if p["Puck Movement Score"] <= 35:
+    if p["Breakouts via stickhandling/60 Percentile"] <= 30:
 
         weaknesses.append(
-            "Limited puck moving ability"
+            "Limited puck carrying breakout ability"
         )
 
-    if p["Playmaking Score"] <= 35:
+    # PLAYMAKING
+
+    if p["Pre-shots passes/60 Percentile"] <= 30:
 
         weaknesses.append(
-            "Limited offensive creation"
+            "Limited offensive chance creation"
         )
 
-    if p["Shooting Score"] <= 35:
+    # SHOOTING
+
+    if p["Goals/60 Percentile"] <= 30:
 
         weaknesses.append(
-            "Below average finishing ability"
+            "Below average finishing production"
         )
+
+    if p["xG (Expected goals)/60 Percentile"] <= 30:
+
+        weaknesses.append(
+            "Does not consistently generate dangerous scoring chances"
+        )
+
+    # DEFENSE
 
     if p["Defense Score"] <= 35:
 
         weaknesses.append(
-            "Below average defensive impact"
+            "Limited defensive impact"
         )
+
+    if p["Takeaways/60 Percentile"] <= 30:
+
+        weaknesses.append(
+            "Low defensive puck disruption rates"
+        )
+
+    # IMPACT
 
     if p["Impact Score"] <= 35:
 
         weaknesses.append(
-            "Limited positive on-ice impact"
+            "Limited positive overall on-ice impact"
         )
 
     if len(weaknesses) == 0:
