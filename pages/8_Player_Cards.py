@@ -7,7 +7,7 @@ import streamlit.components.v1 as components
 # ==================================================
 
 st.set_page_config(
-    page_title="SDHL Player Cards",
+    page_title="SDHL Player Comparison",
     layout="wide"
 )
 
@@ -43,9 +43,7 @@ df["Team"] = (
 
 df["Overall Score"] = 0.0
 
-# ==================================================
 # FORWARDS
-# ==================================================
 
 forward_mask = df["Position"] == "F"
 
@@ -65,9 +63,7 @@ df.loc[forward_mask, "Overall Score"] = (
 
 )
 
-# ==================================================
 # DEFENSEMEN
-# ==================================================
 
 defense_mask = df["Position"] == "D"
 
@@ -115,9 +111,7 @@ df[numeric_cols] = df[numeric_cols].round(1)
 
 st.sidebar.header("Filters")
 
-# ==================================================
 # TOI FILTER
-# ==================================================
 
 min_toi = st.sidebar.slider(
     "Minimum TOI",
@@ -127,9 +121,7 @@ min_toi = st.sidebar.slider(
     step=10
 )
 
-# ==================================================
 # GAMES FILTER
-# ==================================================
 
 min_games = st.sidebar.slider(
     "Minimum Games",
@@ -139,37 +131,14 @@ min_games = st.sidebar.slider(
     step=1
 )
 
-# ==================================================
 # APPLY FILTERS
-# ==================================================
 
 df = df[
     (df["Time on ice"] >= min_toi) &
     (df["Games played"] >= min_games)
 ]
 
-# ==================================================
-# TEAM FILTER
-# ==================================================
-
-teams = sorted(
-    df["Team"].dropna().unique()
-)
-
-selected_team = st.sidebar.selectbox(
-    "Team",
-    ["All Teams"] + teams
-)
-
-if selected_team != "All Teams":
-
-    df = df[
-        df["Team"] == selected_team
-    ]
-
-# ==================================================
 # POSITION FILTER
-# ==================================================
 
 positions = sorted(
     df["Position"].dropna().unique()
@@ -185,50 +154,38 @@ filtered_df = df[
 ]
 
 # ==================================================
-# PLAYER FILTER
+# PLAYER COMPARISON
 # ==================================================
 
 players = sorted(
     filtered_df["Player"].dropna().unique()
 )
 
-selected_player = st.sidebar.selectbox(
-    "Player",
-    players
+st.sidebar.markdown("---")
+
+player1 = st.sidebar.selectbox(
+    "Player 1",
+    players,
+    index=0
+)
+
+player2 = st.sidebar.selectbox(
+    "Player 2",
+    players,
+    index=min(1, len(players)-1)
 )
 
 # ==================================================
-# PLAYER ROW
+# PLAYER ROWS
 # ==================================================
 
-p = filtered_df[
-    filtered_df["Player"] == selected_player
+p1 = filtered_df[
+    filtered_df["Player"] == player1
 ].iloc[0]
 
-# ==================================================
-# TEAM LOGOS
-# ==================================================
-
-team_logos = {
-
-    "Brynas": "images/Brynas.png",
-    "Djurgarden": "images/Djurgarden.png",
-    "Farjestad": "images/Farjestad.png",
-    "Frolunda": "images/Frolunda.png",
-    "HV71": "images/HV71.png",
-    "Linkoping": "images/Linkoping.png",
-    "Lulea/MSSK": "images/Lulea.png",
-    "MODO": "images/MODO.png",
-    "SDE HF": "images/SDE HF.png",
-    "Skelleftea AIK": "images/Skelleftea AIK.png"
-
-}
-
-# ==================================================
-# TITLE
-# ==================================================
-
-st.title("🏒 SDHL Player Cards")
+p2 = filtered_df[
+    filtered_df["Player"] == player2
+].iloc[0]
 
 # ==================================================
 # COLOR FUNCTION
@@ -279,10 +236,10 @@ def get_label(value):
         return "WEAK"
 
 # ==================================================
-# SKILL TILE
+# SMALL TILE
 # ==================================================
 
-def stat_tile(title, value):
+def comparison_tile(title, value):
 
     if pd.isna(value):
         value = 0
@@ -296,39 +253,39 @@ def stat_tile(title, value):
     html = f"""
     <div style="
         background:{color};
-        border-radius:12px;
-        height:125px;
-        padding:10px;
+        border-radius:10px;
+        height:90px;
+        padding:6px;
         display:flex;
         flex-direction:column;
         justify-content:center;
         align-items:center;
         font-family:Arial;
         color:black;
-        margin-bottom:10px;
+        margin-bottom:6px;
     ">
 
         <div style="
-            font-size:14px;
+            font-size:12px;
             font-weight:700;
             text-align:center;
-            margin-bottom:8px;
         ">
             {title}
         </div>
 
         <div style="
-            font-size:40px;
+            font-size:28px;
             font-weight:800;
             line-height:1;
+            margin-top:4px;
         ">
             {value}
         </div>
 
         <div style="
-            font-size:12px;
+            font-size:10px;
             font-weight:700;
-            margin-top:8px;
+            margin-top:4px;
             letter-spacing:1px;
         ">
             {label}
@@ -339,14 +296,14 @@ def stat_tile(title, value):
 
     components.html(
         html,
-        height=135
+        height=100
     )
 
 # ==================================================
 # RAW TILE
 # ==================================================
 
-def raw_stat_tile(title, value):
+def raw_tile(title, value):
 
     if pd.isna(value):
         value = 0
@@ -356,34 +313,31 @@ def raw_stat_tile(title, value):
     html = f"""
     <div style="
         background:#1B1F2A;
-        border-radius:12px;
-        height:125px;
-        padding:10px;
+        border-radius:10px;
+        height:90px;
+        padding:6px;
         display:flex;
         flex-direction:column;
         justify-content:center;
         align-items:center;
         font-family:Arial;
         color:white;
-        margin-bottom:10px;
+        margin-bottom:6px;
         border:1px solid #2D3748;
     ">
 
         <div style="
-            font-size:14px;
+            font-size:12px;
             font-weight:700;
-            text-align:center;
-            margin-bottom:8px;
             color:#C7D0E0;
         ">
             {title}
         </div>
 
         <div style="
-            font-size:42px;
+            font-size:28px;
             font-weight:800;
-            line-height:1;
-            color:white;
+            margin-top:4px;
         ">
             {value}
         </div>
@@ -393,103 +347,95 @@ def raw_stat_tile(title, value):
 
     components.html(
         html,
-        height=135
+        height=100
     )
 
 # ==================================================
-# HEADER
+# TITLE
 # ==================================================
 
-header1, header2 = st.columns([1, 5])
+st.title("🏒 SDHL Player Comparison")
 
-with header1:
+# ==================================================
+# PLAYER HEADERS
+# ==================================================
 
-    if p["Team"] in team_logos:
+h1, h2, h3 = st.columns([5,1,5])
 
-        st.image(
-            team_logos[p["Team"]],
-            width=120
-        )
+with h1:
 
-with header2:
-
+    st.markdown(f"## {player1}")
     st.markdown(
-        f"# {selected_player}"
+        f"{p1['Team']} | {p1['Position']}"
     )
 
+with h2:
+
+    st.markdown("## VS")
+
+with h3:
+
+    st.markdown(f"## {player2}")
     st.markdown(
-        f"### {p['Team']} | {p['Position']}"
-    )
-
-    st.markdown(
-        f"""
-        **GP:** {int(p['Games played'])}
-        |
-        **TOI:** {round(p['Time on ice'])}
-        """
+        f"{p2['Team']} | {p2['Position']}"
     )
 
 # ==================================================
-# SKILL PROFILE
+# SKILL COMPARISON
 # ==================================================
 
-st.markdown("## Skill Profile")
+st.markdown("## Skill Comparison")
 
-c1, c2, c3 = st.columns(3)
+skills = [
 
-with c1:
-    stat_tile("Shooting", p["Shooting Score"])
+    ("Shooting", "Shooting Score"),
+    ("Playmaking", "Playmaking Score"),
+    ("Transition", "Transition Score"),
+    ("Puck Movement", "Puck Movement Score"),
+    ("Defense", "Defense Score"),
+    ("Impact", "Impact Score"),
+    ("Overall", "Overall Score")
 
-with c2:
-    stat_tile("Playmaking", p["Playmaking Score"])
+]
 
-with c3:
-    stat_tile("Transition", p["Transition Score"])
+for title, stat in skills:
 
-c4, c5, c6 = st.columns(3)
+    c1, c2, c3 = st.columns([5,2,5])
 
-with c4:
-    stat_tile("Puck Movement", p["Puck Movement Score"])
+    with c1:
+        comparison_tile(title, p1[stat])
 
-with c5:
-    stat_tile("Defense", p["Defense Score"])
+    with c2:
+        st.markdown("")
 
-with c6:
-    stat_tile("Impact", p["Impact Score"])
-
-# ==================================================
-# OVERALL
-# ==================================================
-
-st.markdown("## Overall")
-
-o1, o2 = st.columns(2)
-
-with o1:
-    stat_tile("Overall Score", p["Overall Score"])
-
-with o2:
-    stat_tile(
-        "Overall Percentile",
-        p["Overall Score Percentile"]
-    )
+    with c3:
+        comparison_tile(title, p2[stat])
 
 # ==================================================
-# RAW PRODUCTION
+# RAW STATS
 # ==================================================
 
 st.markdown("## Raw Production")
 
-r1, r2, r3, r4 = st.columns(4)
+raw_stats = [
 
-with r1:
-    raw_stat_tile("Points", p["Points"])
+    ("GP", "Games played"),
+    ("Points", "Points"),
+    ("Goals", "Goals"),
+    ("Assists", "Assists"),
+    ("xG", "xG (Expected goals)")
 
-with r2:
-    raw_stat_tile("Goals", p["Goals"])
+]
 
-with r3:
-    raw_stat_tile("Assists", p["Assists"])
+for title, stat in raw_stats:
 
-with r4:
-    raw_stat_tile("xG", p["xG (Expected goals)"])
+    c1, c2, c3 = st.columns([5,2,5])
+
+    with c1:
+        raw_tile(title, p1[stat])
+
+    with c2:
+        st.markdown("")
+
+    with c3:
+        raw_tile(title, p2[stat])
