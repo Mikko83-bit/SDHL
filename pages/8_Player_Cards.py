@@ -164,14 +164,41 @@ def get_color(value):
     elif value >= 75:
         return "#2E6DB4"
 
-    elif value >= 50:
-        return "#9BC7F2"
+    elif value >= 60:
+        return "#6FA8DC"
 
-    elif value >= 30:
+    elif value >= 40:
+        return "#B7D7F0"
+
+    elif value >= 25:
         return "#F4B6B6"
 
     else:
         return "#D94B4B"
+
+# ==================================================
+# LABEL FUNCTION
+# ==================================================
+
+def get_label(value):
+
+    if value >= 90:
+        return "ELITE"
+
+    elif value >= 75:
+        return "EXCELLENT"
+
+    elif value >= 60:
+        return "GOOD"
+
+    elif value >= 40:
+        return "AVERAGE"
+
+    elif value >= 25:
+        return "BELOW AVG"
+
+    else:
+        return "WEAK"
 
 # ==================================================
 # TILE FUNCTION
@@ -186,11 +213,13 @@ def stat_tile(title, value):
 
     color = get_color(value)
 
+    label = get_label(value)
+
     html = f"""
     <div style="
         background:{color};
-        border-radius:10px;
-        height:110px;
+        border-radius:12px;
+        height:125px;
         padding:10px;
         display:flex;
         flex-direction:column;
@@ -211,11 +240,20 @@ def stat_tile(title, value):
         </div>
 
         <div style="
-            font-size:38px;
+            font-size:40px;
             font-weight:800;
             line-height:1;
         ">
             {value}
+        </div>
+
+        <div style="
+            font-size:12px;
+            font-weight:700;
+            margin-top:8px;
+            letter-spacing:1px;
+        ">
+            {label}
         </div>
 
     </div>
@@ -223,7 +261,7 @@ def stat_tile(title, value):
 
     components.html(
         html,
-        height=120
+        height=135
     )
 
 # ==================================================
@@ -334,7 +372,7 @@ with o2:
     )
 
 # ==================================================
-# RAW STATS
+# RAW PRODUCTION
 # ==================================================
 
 st.markdown("## Raw Production")
