@@ -1,87 +1,167 @@
 import streamlit as st
 import pandas as pd
 
-# =========================
+# ==================================================
 # PAGE CONFIG
-# =========================
+# ==================================================
 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="Scouting Report",
+    layout="wide"
+)
 
-# =========================
-# PAGE TITLE
-# =========================
+st.title("📝 Scouting Report")
 
-st.title("📝 Automated Scouting Report")
-
-# =========================
+# ==================================================
 # TEAM LOGOS
-# =========================
-
-logo_size = 120
+# ==================================================
 
 team_logos = {
 
     "Brynas": "images/Brynas.png",
-
     "Djurgarden": "images/Djurgarden.png",
-
     "Farjestad": "images/Farjestad.png",
-
     "Frolunda": "images/Frolunda.png",
-
     "HV71": "images/HV71.png",
-
     "Linkoping": "images/Linkoping.png",
-
     "Lulea/MSSK": "images/Lulea.png",
-
     "MODO": "images/MODO.png",
-
     "SDE HF": "images/SDE HF.png",
+    "Skelleftea AIK": "images/Skelleftea AIK.png"
 
-    "Skelleftea": "images/Skelleftea AIK.png"
 }
 
-# =========================
+# ==================================================
 # LOAD DATA
-# =========================
+# ==================================================
 
 df = pd.read_excel(
-    "SDHL_ZScore_GameScore_Final.xlsx"
+    "SDHL_Processed_2025_2026.xlsx"
 )
 
-# =========================
+# ==================================================
 # CLEAN DATA
-# =========================
+# ==================================================
 
-numeric_columns = [
-    "Goals/60",
-    "Assists/60",
-    "xG/60",
-    "Net xG",
-    "Game Score",
-    "Time on ice"
+df.columns = df.columns.str.strip()
+
+df["Position"] = (
+    df["Position"]
+    .astype(str)
+    .str.strip()
+)
+
+df["Team"] = (
+    df["Team"]
+    .astype(str)
+    .str.strip()
+)
+
+# ==================================================
+# FIX OZ POSSESSION /60
+# ==================================================
+
+df["OZ possession/60"] = (
+
+    df["OZ possession"] /
+    df["Time on ice"]
+
+) * 60
+
+# ==================================================
+# RECALCULATE PUCK MOVEMENT SCORE
+# ==================================================
+
+puck_metrics = [
+
+    "Breakouts via pass/60",
+    "Breakouts via stickhandling/60",
+    "Puck touches/60",
+    "OZ possession/60"
+
 ]
 
-for col in numeric_columns:
+for stat in puck_metrics:
 
-    df[col] = pd.to_numeric(
-        df[col],
-        errors="coerce"
+    percentile_col = f"{stat} Percentile"
+
+    df[percentile_col] = (
+
+        df.groupby("Position")[stat]
+        .rank(pct=True) * 100
+
     )
 
-df = df.dropna(subset=numeric_columns)
+df["Puck Movement Score"] = (
 
-# =========================
-# SIDEBAR FILTERS
-# =========================
+    df[
+        [f"{x} Percentile" for x in puck_metrics]
+    ].mean(axis=1)
+
+)
+
+# ==================================================
+# OVERALL SCORE
+# ==================================================
+
+df["Overall Score"] = 0.0
+
+forward_mask = df["Position"] == "F"
+
+df.loc[forward_mask, "Overall Score"] = (
+
+    df.loc[forward_mask, "Shooting Score"] * 0.25 +
+
+    df.loc[forward_mask, "Playmaking Score"] * 0.25 +
+
+    df.loc[forward_mask, "Transition Score"] * 0.25 +
+
+    df.loc[forward_mask, "Puck Movement Score"] * 0.10 +
+
+    df.loc[forward_mask, "Defense Score"] * 0.05 +
+
+    df.loc[forward_mask, "Impact Score"] * 0.10
+
+)
+
+defense_mask = df["Position"] == "D"
+
+df.loc[defense_mask, "Overall Score"] = (
+
+    df.loc[defense_mask, "Shooting Score"] * 0.10 +
+
+    df.loc[defense_mask, "Playmaking Score"] * 0.15 +
+
+    df.loc[defense_mask, "Transition Score"] * 0.25 +
+
+    df.loc[defense_mask, "Puck Movement Score"] * 0.25 +
+
+    df.loc[defense_mask, "Defense Score"] * 0.15 +
+
+    df.loc[defense_mask, "Impact Score"] * 0.10
+
+)
+
+# ==================================================
+# OVERALL PERCENTILE
+# ==================================================
+
+df["Overall Percentile"] = (
+
+    df.groupby("Position")[
+        "Overall Score"
+    ].rank(pct=True) * 100
+
+)
+
+# ==================================================
+# SIDEBAR
+# ==================================================
 
 st.sidebar.header("Filters")
 
-# POSITION FILTER
-
 positions = sorted(
-    df["Position"].unique()
+    df["Position"].dropna().unique()
 )
 
 selected_position = st.sidebar.selectbox(
@@ -93,10 +173,8 @@ filtered_df = df[
     df["Position"] == selected_position
 ]
 
-# TEAM FILTER
-
 teams = sorted(
-    filtered_df["Team"].unique()
+    filtered_df["Team"].dropna().unique()
 )
 
 selected_team = st.sidebar.selectbox(
@@ -104,12 +182,10 @@ selected_team = st.sidebar.selectbox(
     teams
 )
 
-# PLAYER FILTER
-
 players = sorted(
     filtered_df[
         filtered_df["Team"] == selected_team
-    ]["Player"].unique()
+    ]["Player"].dropna().unique()
 )
 
 selected_player = st.sidebar.selectbox(
@@ -117,25 +193,21 @@ selected_player = st.sidebar.selectbox(
     players
 )
 
-# =========================
-# PLAYER DATA
-# =========================
+# ==================================================
+# PLAYER
+# ==================================================
 
 p = filtered_df[
     filtered_df["Player"] == selected_player
 ].iloc[0]
 
-# =========================
-# PLAYER CARD
-# =========================
+# ==================================================
+# PLAYER OVERVIEW
+# ==================================================
 
-st.subheader("🏒 Player Profile")
+st.subheader("🏒 Player Overview")
 
-col1, col2 = st.columns([1, 2])
-
-# =========================
-# LEFT SIDE
-# =========================
+col1, col2 = st.columns([1,3])
 
 with col1:
 
@@ -143,273 +215,215 @@ with col1:
 
         st.image(
             team_logos[p["Team"]],
-            width=logo_size
+            width=120
         )
 
-    st.markdown(
-        f"## {selected_player}"
-    )
+with col2:
+
+    st.markdown(f"## {selected_player}")
 
     st.markdown(
         f"### {p['Team']} | {p['Position']}"
     )
 
-    st.metric(
-        "Game Score",
-        round(p["Game Score"], 2)
-    )
-
-    st.metric(
-        "Goals/60",
-        round(p["Goals/60"], 2)
-    )
-
-    st.metric(
-        "Assists/60",
-        round(p["Assists/60"], 2)
-    )
-
-    st.metric(
-        "xG/60",
-        round(p["xG/60"], 2)
-    )
-
-    st.metric(
-        "Net xG",
-        round(p["Net xG"], 2)
-    )
-
-    st.metric(
-        "TOI",
-        round(p["Time on ice"], 1)
-    )
-
-# =========================
-# RIGHT SIDE
-# =========================
-
-with col2:
-
-    # =========================
-    # PLAYER ARCHETYPE
-    # =========================
-
-    st.subheader("🧬 Player Archetype")
-
-    archetype = "Balanced Player"
-
-    archetype_description = (
-        "Balanced player profile without one clearly dominant offensive trait."
-    )
-
-    # ELITE FINISHER
-
-    if (
-        p["Goals/60"] >= 1.0
-        and
-        p["xG/60"] >= 0.9
-    ):
-
-        archetype = "Elite Finisher"
-
-        archetype_description = (
-            "High-end scoring threat who consistently attacks dangerous scoring areas and finishes chances efficiently."
-        )
-
-    # PLAYMAKER
-
-    elif (
-        p["Assists/60"] >= 1.0
-        and
-        p["Goals/60"] < 1.0
-    ):
-
-        archetype = "Offensive Playmaker"
-
-        archetype_description = (
-            "Creative offensive player who drives production through passing and chance creation."
-        )
-
-    # TWO-WAY
-
-    elif (
-        p["Net xG"] >= 2
-        and
-        p["Game Score"] >= 5
-    ):
-
-        archetype = "Two-Way Impact Player"
-
-        archetype_description = (
-            "Reliable impact player who positively drives overall on-ice results at both ends."
-        )
-
-    # SHOT CREATOR
-
-    elif (
-        p["xG/60"] >= 1.0
-        and
-        p["Goals/60"] < 0.8
-    ):
-
-        archetype = "Shot Creator"
-
-        archetype_description = (
-            "Generates strong offensive opportunities and dangerous scoring chances consistently."
-        )
-
-    # DEPTH PLAYER
-
-    elif (
-        p["Game Score"] < 3
-    ):
-
-        archetype = "Depth Offensive Player"
-
-        archetype_description = (
-            "Currently projects more as a supporting offensive contributor."
-        )
+    st.markdown("---")
 
     st.markdown(
-        f"## {archetype}"
+        f"### Overall Score: {round(p['Overall Score'],1)}"
     )
 
-    st.info(
-        archetype_description
+    st.markdown(
+        f"### League Percentile: {round(p['Overall Percentile'])}th"
     )
 
-    # =========================
-    # AUTOMATED SCOUTING REPORT
-    # =========================
+# ==================================================
+# ROLE DETECTION
+# ==================================================
 
-    st.subheader("🔍 Automated Scouting Report")
+role = "Balanced Player"
 
-    report = []
+if (
+    p["Transition Score"] >= 75
+    and
+    p["Playmaking Score"] >= 65
+):
 
-    # SCORING
+    role = "Transition Playmaker"
 
-    if p["Goals/60"] >= 1.0:
+elif (
+    p["Shooting Score"] >= 75
+):
 
-        report.append(
-            "Elite goal scorer with high-end finishing ability."
-        )
+    role = "Finishing Forward"
 
-    elif p["Goals/60"] >= 0.7:
+elif (
+    p["Defense Score"] >= 75
+    and
+    p["Impact Score"] >= 70
+):
 
-        report.append(
-            "Strong scoring threat capable of generating offense consistently."
-        )
+    role = "Two-Way Player"
 
-    elif p["Goals/60"] >= 0.4:
+elif (
+    p["Puck Movement Score"] >= 75
+):
 
-        report.append(
-            "Contributes offense regularly through scoring opportunities."
-        )
+    role = "Puck Moving Defender"
 
-    else:
+elif (
+    p["Playmaking Score"] >= 75
+):
 
-        report.append(
-            "Limited scoring production profile."
-        )
+    role = "Offensive Playmaker"
 
-    # PLAYMAKING
+st.markdown(
+    f"### Role: {role}"
+)
 
-    if p["Assists/60"] >= 1.0:
+# ==================================================
+# STRENGTHS
+# ==================================================
 
-        report.append(
-            "Elite offensive playmaker with strong passing vision."
-        )
+st.markdown("---")
 
-    elif p["Assists/60"] >= 0.7:
+st.subheader("✅ Strengths")
 
-        report.append(
-            "Reliable offensive creator capable of generating chances for teammates."
-        )
+strengths = []
 
-    elif p["Assists/60"] >= 0.4:
+if p["Transition Score"] >= 80:
 
-        report.append(
-            "Provides moderate offensive support through puck movement."
-        )
+    strengths.append(
+        "Elite transition ability"
+    )
 
-    # SHOT QUALITY
+elif p["Transition Score"] >= 65:
 
-    if p["xG/60"] >= 1.0:
+    strengths.append(
+        "Strong transition game"
+    )
 
-        report.append(
-            "Consistently attacks dangerous scoring areas and creates high-quality chances."
-        )
+if p["Puck Movement Score"] >= 80:
 
-    elif p["xG/60"] >= 0.7:
+    strengths.append(
+        "Excellent puck movement under pressure"
+    )
 
-        report.append(
-            "Generates quality offensive opportunities regularly."
-        )
+elif p["Puck Movement Score"] >= 65:
 
-    # IMPACT
+    strengths.append(
+        "Reliable puck moving ability"
+    )
 
-    if p["Net xG"] >= 2:
+if p["Playmaking Score"] >= 80:
 
-        report.append(
-            "Strong positive on-ice impact player who drives offensive play."
-        )
+    strengths.append(
+        "Elite offensive playmaking"
+    )
 
-    elif p["Net xG"] >= 0:
+elif p["Playmaking Score"] >= 65:
 
-        report.append(
-            "Positive overall impact profile."
-        )
+    strengths.append(
+        "Strong offensive creation"
+    )
 
-    else:
+if p["Shooting Score"] >= 80:
 
-        report.append(
-            "Negative overall impact results based on current metrics."
-        )
+    strengths.append(
+        "High-end finishing ability"
+    )
 
-    # GAME SCORE
+elif p["Shooting Score"] >= 65:
 
-    if p["Game Score"] >= 8:
+    strengths.append(
+        "Consistent scoring threat"
+    )
 
-        report.append(
-            "Projects as an elite-level offensive performer."
-        )
+if p["Defense Score"] >= 80:
 
-    elif p["Game Score"] >= 5:
+    strengths.append(
+        "Excellent defensive impact"
+    )
 
-        report.append(
-            "Projects as a strong top-six offensive player."
-        )
+elif p["Defense Score"] >= 65:
 
-    elif p["Game Score"] >= 3:
+    strengths.append(
+        "Reliable defensive play"
+    )
 
-        report.append(
-            "Projects as a reliable middle-lineup contributor."
-        )
+if p["Impact Score"] >= 80:
 
-    else:
+    strengths.append(
+        "Drives positive overall team impact"
+    )
 
-        report.append(
-            "Current profile suggests depth-level offensive contribution."
-        )
+elif p["Impact Score"] >= 65:
 
-    # TOI
+    strengths.append(
+        "Positive on-ice impact profile"
+    )
 
-    if p["Time on ice"] >= 700:
+if len(strengths) == 0:
 
-        report.append(
-            "Trusted heavily by coaching staff in high-minute situations."
-        )
+    strengths.append(
+        "No clearly elite strengths based on current statistical profile."
+    )
 
-    elif p["Time on ice"] >= 500:
+for item in strengths:
 
-        report.append(
-            "Regularly deployed in meaningful game situations."
-        )
+    st.markdown(f"• {item}")
 
-    # DISPLAY REPORT
+# ==================================================
+# WEAKNESSES
+# ==================================================
 
-    for sentence in report:
+st.markdown("---")
 
-        st.markdown(
-            f"- {sentence}"
-        )
+st.subheader("❌ Weaknesses")
+
+weaknesses = []
+
+if p["Transition Score"] <= 35:
+
+    weaknesses.append(
+        "Limited transition impact"
+    )
+
+if p["Puck Movement Score"] <= 35:
+
+    weaknesses.append(
+        "Limited puck moving ability"
+    )
+
+if p["Playmaking Score"] <= 35:
+
+    weaknesses.append(
+        "Limited offensive creation"
+    )
+
+if p["Shooting Score"] <= 35:
+
+    weaknesses.append(
+        "Below average finishing ability"
+    )
+
+if p["Defense Score"] <= 35:
+
+    weaknesses.append(
+        "Below average defensive impact"
+    )
+
+if p["Impact Score"] <= 35:
+
+    weaknesses.append(
+        "Limited positive on-ice impact"
+    )
+
+if len(weaknesses) == 0:
+
+    weaknesses.append(
+        "No major statistical weaknesses identified."
+    )
+
+for item in weaknesses:
+
+    st.markdown(f"• {item}")
