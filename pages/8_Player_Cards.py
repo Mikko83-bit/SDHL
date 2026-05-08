@@ -38,6 +38,49 @@ df["Team"] = (
 )
 
 # ==================================================
+# FIX OZ POSSESSION /60
+# ==================================================
+
+df["OZ possession/60"] = (
+
+    df["OZ possession"] /
+    df["Time on ice"]
+
+) * 60
+
+# ==================================================
+# RECALCULATE PUCK MOVEMENT SCORE
+# ==================================================
+
+puck_metrics = [
+
+    "Breakouts via pass/60",
+    "Breakouts via stickhandling/60",
+    "Puck touches/60",
+    "OZ possession/60"
+
+]
+
+for stat in puck_metrics:
+
+    percentile_col = f"{stat} Percentile"
+
+    df[percentile_col] = (
+
+        df.groupby("Position")[stat]
+        .rank(pct=True) * 100
+
+    )
+
+df["Puck Movement Score"] = (
+
+    df[
+        [f"{x} Percentile" for x in puck_metrics]
+    ].mean(axis=1)
+
+)
+
+# ==================================================
 # POSITION-SPECIFIC OVERALL SCORE
 # ==================================================
 
@@ -282,7 +325,7 @@ def get_label(value):
         return "WEAK"
 
 # ==================================================
-# COMPACT SKILL TILE
+# SKILL TILE
 # ==================================================
 
 def comparison_tile(title, value):
@@ -346,7 +389,7 @@ def comparison_tile(title, value):
     )
 
 # ==================================================
-# COMPACT RAW TILE
+# RAW TILE
 # ==================================================
 
 def raw_tile(title, value):
@@ -465,13 +508,13 @@ for title, stat in skills:
     c1, c2, c3 = st.columns([5,1,5])
 
     with c1:
-        comparison_tile(title, p1[stat])
+        comparison_tile(title, p1.get(stat, 0))
 
     with c2:
         st.markdown("")
 
     with c3:
-        comparison_tile(title, p2[stat])
+        comparison_tile(title, p2.get(stat, 0))
 
 # ==================================================
 # RAW PRODUCTION
@@ -482,15 +525,10 @@ st.markdown("## Raw Production")
 raw_stats = [
 
     ("GP", "Games played"),
-
     ("TOI", "Time on ice"),
-
     ("Points", "Points"),
-
     ("Goals", "Goals"),
-
     ("Assists", "Assists"),
-
     ("xG", "xG (Expected goals)")
 
 ]
@@ -500,10 +538,148 @@ for title, stat in raw_stats:
     c1, c2, c3 = st.columns([5,1,5])
 
     with c1:
-        raw_tile(title, p1[stat])
+        raw_tile(title, p1.get(stat, 0))
 
     with c2:
         st.markdown("")
 
     with c3:
-        raw_tile(title, p2[stat])
+        raw_tile(title, p2.get(stat, 0))
+
+# ==================================================
+# SCORE BREAKDOWNS
+# ==================================================
+
+st.markdown("## Score Breakdowns")
+
+# ==================================================
+# SHOOTING BREAKDOWN
+# ==================================================
+
+with st.expander("Shooting Breakdown"):
+
+    shooting_df = pd.DataFrame({
+
+        "Metric": [
+
+            "Goals/60",
+            "Shots/60",
+            "xG/60",
+            "Scoring Chances/60",
+            "Inner Slot Shots/60"
+
+        ],
+
+        player1: [
+
+            p1.get("Goals/60", 0),
+            p1.get("Shots/60", 0),
+            p1.get("xG (Expected goals)/60", 0),
+            p1.get("Scoring chances - total/60", 0),
+            p1.get("Inner slot shots - total/60", 0)
+
+        ],
+
+        player2: [
+
+            p2.get("Goals/60", 0),
+            p2.get("Shots/60", 0),
+            p2.get("xG (Expected goals)/60", 0),
+            p2.get("Scoring chances - total/60", 0),
+            p2.get("Inner slot shots - total/60", 0)
+
+        ]
+
+    })
+
+    st.dataframe(
+        shooting_df,
+        use_container_width=True
+    )
+
+# ==================================================
+# PLAYMAKING BREAKDOWN
+# ==================================================
+
+with st.expander("Playmaking Breakdown"):
+
+    playmaking_df = pd.DataFrame({
+
+        "Metric": [
+
+            "Pre-shot Passes/60",
+            "Passes to Slot/60",
+            "First Assists/60",
+            "Accurate Pass %"
+
+        ],
+
+        player1: [
+
+            p1.get("Pre-shots passes/60", 0),
+            p1.get("Passes to the slot/60", 0),
+            p1.get("First assist/60", 0),
+            p1.get("Accurate passes, %", 0)
+
+        ],
+
+        player2: [
+
+            p2.get("Pre-shots passes/60", 0),
+            p2.get("Passes to the slot/60", 0),
+            p2.get("First assist/60", 0),
+            p2.get("Accurate passes, %", 0)
+
+        ]
+
+    })
+
+    st.dataframe(
+        playmaking_df,
+        use_container_width=True
+    )
+
+# ==================================================
+# TRANSITION BREAKDOWN
+# ==================================================
+
+with st.expander("Transition Breakdown"):
+
+    transition_df = pd.DataFrame({
+
+        "Metric": [
+
+            "Entries/60",
+            "Entries via Stickhandling/60",
+            "Entries via Pass/60",
+            "Breakouts/60",
+            "OZ Possession/60"
+
+        ],
+
+        player1: [
+
+            p1.get("Entries/60", 0),
+            p1.get("Entries via stickhandling/60", 0),
+            p1.get("Entries via pass/60", 0),
+            p1.get("Breakouts/60", 0),
+            p1.get("OZ possession/60", 0)
+
+        ],
+
+        player2: [
+
+            p2.get("Entries/60", 0),
+            p2.get("Entries via stickhandling/60", 0),
+            p2.get("Entries via pass/60", 0),
+            p2.get("Breakouts/60", 0),
+            p2.get("OZ possession/60", 0)
+
+        ]
+
+    })
+
+    st.dataframe(
+        transition_df,
+        use_container_width=True
+    )
