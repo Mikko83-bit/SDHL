@@ -111,7 +111,9 @@ df[numeric_cols] = df[numeric_cols].round(1)
 
 st.sidebar.header("Filters")
 
+# ==================================================
 # TOI FILTER
+# ==================================================
 
 min_toi = st.sidebar.slider(
     "Minimum TOI",
@@ -121,7 +123,9 @@ min_toi = st.sidebar.slider(
     step=10
 )
 
+# ==================================================
 # GAMES FILTER
+# ==================================================
 
 min_games = st.sidebar.slider(
     "Minimum Games",
@@ -131,14 +135,18 @@ min_games = st.sidebar.slider(
     step=1
 )
 
+# ==================================================
 # APPLY FILTERS
+# ==================================================
 
 df = df[
     (df["Time on ice"] >= min_toi) &
     (df["Games played"] >= min_games)
 ]
 
+# ==================================================
 # POSITION FILTER
+# ==================================================
 
 positions = sorted(
     df["Position"].dropna().unique()
@@ -154,25 +162,50 @@ filtered_df = df[
 ]
 
 # ==================================================
-# PLAYER COMPARISON
+# TEAM FILTERS
 # ==================================================
 
-players = sorted(
-    filtered_df["Player"].dropna().unique()
+teams = sorted(
+    filtered_df["Team"].dropna().unique()
+)
+
+team1 = st.sidebar.selectbox(
+    "Team 1",
+    teams
+)
+
+team2 = st.sidebar.selectbox(
+    "Team 2",
+    teams,
+    index=min(1, len(teams)-1)
+)
+
+# ==================================================
+# PLAYER FILTERS
+# ==================================================
+
+team1_players = sorted(
+    filtered_df[
+        filtered_df["Team"] == team1
+    ]["Player"].dropna().unique()
+)
+
+team2_players = sorted(
+    filtered_df[
+        filtered_df["Team"] == team2
+    ]["Player"].dropna().unique()
 )
 
 st.sidebar.markdown("---")
 
 player1 = st.sidebar.selectbox(
     "Player 1",
-    players,
-    index=0
+    team1_players
 )
 
 player2 = st.sidebar.selectbox(
     "Player 2",
-    players,
-    index=min(1, len(players)-1)
+    team2_players
 )
 
 # ==================================================
@@ -236,7 +269,7 @@ def get_label(value):
         return "WEAK"
 
 # ==================================================
-# SMALL TILE
+# COMPACT SKILL TILE
 # ==================================================
 
 def comparison_tile(title, value):
@@ -253,20 +286,20 @@ def comparison_tile(title, value):
     html = f"""
     <div style="
         background:{color};
-        border-radius:10px;
-        height:90px;
-        padding:6px;
+        border-radius:8px;
+        height:72px;
+        padding:4px;
         display:flex;
         flex-direction:column;
         justify-content:center;
         align-items:center;
         font-family:Arial;
         color:black;
-        margin-bottom:6px;
+        margin-bottom:4px;
     ">
 
         <div style="
-            font-size:12px;
+            font-size:11px;
             font-weight:700;
             text-align:center;
         ">
@@ -274,18 +307,18 @@ def comparison_tile(title, value):
         </div>
 
         <div style="
-            font-size:28px;
+            font-size:24px;
             font-weight:800;
             line-height:1;
-            margin-top:4px;
+            margin-top:2px;
         ">
             {value}
         </div>
 
         <div style="
-            font-size:10px;
+            font-size:9px;
             font-weight:700;
-            margin-top:4px;
+            margin-top:2px;
             letter-spacing:1px;
         ">
             {label}
@@ -296,11 +329,11 @@ def comparison_tile(title, value):
 
     components.html(
         html,
-        height=100
+        height=78
     )
 
 # ==================================================
-# RAW TILE
+# COMPACT RAW TILE
 # ==================================================
 
 def raw_tile(title, value):
@@ -313,21 +346,21 @@ def raw_tile(title, value):
     html = f"""
     <div style="
         background:#1B1F2A;
-        border-radius:10px;
-        height:90px;
-        padding:6px;
+        border-radius:8px;
+        height:72px;
+        padding:4px;
         display:flex;
         flex-direction:column;
         justify-content:center;
         align-items:center;
         font-family:Arial;
         color:white;
-        margin-bottom:6px;
+        margin-bottom:4px;
         border:1px solid #2D3748;
     ">
 
         <div style="
-            font-size:12px;
+            font-size:11px;
             font-weight:700;
             color:#C7D0E0;
         ">
@@ -335,9 +368,9 @@ def raw_tile(title, value):
         </div>
 
         <div style="
-            font-size:28px;
+            font-size:24px;
             font-weight:800;
-            margin-top:4px;
+            margin-top:2px;
         ">
             {value}
         </div>
@@ -347,7 +380,7 @@ def raw_tile(title, value):
 
     components.html(
         html,
-        height=100
+        height=78
     )
 
 # ==================================================
@@ -364,18 +397,18 @@ h1, h2, h3 = st.columns([5,1,5])
 
 with h1:
 
-    st.markdown(f"## {player1}")
+    st.markdown(f"### {player1}")
     st.markdown(
         f"{p1['Team']} | {p1['Position']}"
     )
 
 with h2:
 
-    st.markdown("## VS")
+    st.markdown("### VS")
 
 with h3:
 
-    st.markdown(f"## {player2}")
+    st.markdown(f"### {player2}")
     st.markdown(
         f"{p2['Team']} | {p2['Position']}"
     )
@@ -400,7 +433,7 @@ skills = [
 
 for title, stat in skills:
 
-    c1, c2, c3 = st.columns([5,2,5])
+    c1, c2, c3 = st.columns([5,1,5])
 
     with c1:
         comparison_tile(title, p1[stat])
@@ -412,7 +445,7 @@ for title, stat in skills:
         comparison_tile(title, p2[stat])
 
 # ==================================================
-# RAW STATS
+# RAW PRODUCTION
 # ==================================================
 
 st.markdown("## Raw Production")
@@ -429,7 +462,7 @@ raw_stats = [
 
 for title, stat in raw_stats:
 
-    c1, c2, c3 = st.columns([5,2,5])
+    c1, c2, c3 = st.columns([5,1,5])
 
     with c1:
         raw_tile(title, p1[stat])
