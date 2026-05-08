@@ -346,7 +346,7 @@ def comparison_tile(title, value):
     )
 
 # ==================================================
-# RAW TILE
+# COMPACT RAW TILE
 # ==================================================
 
 def raw_tile(title, value):
@@ -465,13 +465,13 @@ for title, stat in skills:
     c1, c2, c3 = st.columns([5,1,5])
 
     with c1:
-        comparison_tile(title, p1[stat])
+        comparison_tile(title, p1.get(stat, 0))
 
     with c2:
         st.markdown("")
 
     with c3:
-        comparison_tile(title, p2[stat])
+        comparison_tile(title, p2.get(stat, 0))
 
 # ==================================================
 # RAW PRODUCTION
@@ -495,16 +495,16 @@ for title, stat in raw_stats:
     c1, c2, c3 = st.columns([5,1,5])
 
     with c1:
-        raw_tile(title, p1[stat])
+        raw_tile(title, p1.get(stat, 0))
 
     with c2:
         st.markdown("")
 
     with c3:
-        raw_tile(title, p2[stat])
+        raw_tile(title, p2.get(stat, 0))
 
 # ==================================================
-# BREAKDOWNS
+# SCORE BREAKDOWNS
 # ==================================================
 
 st.markdown("## Score Breakdowns")
@@ -529,21 +529,21 @@ with st.expander("Shooting Breakdown"):
 
         player1: [
 
-            p1["Goals/60"],
-            p1["Shots/60"],
-            p1["xG (Expected goals)/60"],
-            p1["Scoring chances - total/60"],
-            p1["Inner slot shots - total/60"]
+            p1.get("Goals/60", 0),
+            p1.get("Shots/60", 0),
+            p1.get("xG (Expected goals)/60", 0),
+            p1.get("Scoring chances - total/60", 0),
+            p1.get("Inner slot shots - total/60", 0)
 
         ],
 
         player2: [
 
-            p2["Goals/60"],
-            p2["Shots/60"],
-            p2["xG (Expected goals)/60"],
-            p2["Scoring chances - total/60"],
-            p2["Inner slot shots - total/60"]
+            p2.get("Goals/60", 0),
+            p2.get("Shots/60", 0),
+            p2.get("xG (Expected goals)/60", 0),
+            p2.get("Scoring chances - total/60", 0),
+            p2.get("Inner slot shots - total/60", 0)
 
         ]
 
@@ -573,19 +573,19 @@ with st.expander("Playmaking Breakdown"):
 
         player1: [
 
-            p1["Pre-shots passes/60"],
-            p1["Passes to the slot/60"],
-            p1["First assist/60"],
-            p1["Accurate passes, %"]
+            p1.get("Pre-shots passes/60", 0),
+            p1.get("Passes to the slot/60", 0),
+            p1.get("First assist/60", 0),
+            p1.get("Accurate passes, %", 0)
 
         ],
 
         player2: [
 
-            p2["Pre-shots passes/60"],
-            p2["Passes to the slot/60"],
-            p2["First assist/60"],
-            p2["Accurate passes, %"]
+            p2.get("Pre-shots passes/60", 0),
+            p2.get("Passes to the slot/60", 0),
+            p2.get("First assist/60", 0),
+            p2.get("Accurate passes, %", 0)
 
         ]
 
@@ -615,19 +615,19 @@ with st.expander("Transition Breakdown"):
 
         player1: [
 
-            p1["Entries/60"],
-            p1["Entries via stickhandling/60"],
-            p1["Entries via pass/60"],
-            p1["Breakouts/60"]
+            p1.get("Entries/60", 0),
+            p1.get("Entries via stickhandling/60", 0),
+            p1.get("Entries via pass/60", 0),
+            p1.get("Breakouts/60", 0)
 
         ],
 
         player2: [
 
-            p2["Entries/60"],
-            p2["Entries via stickhandling/60"],
-            p2["Entries via pass/60"],
-            p2["Breakouts/60"]
+            p2.get("Entries/60", 0),
+            p2.get("Entries via stickhandling/60", 0),
+            p2.get("Entries via pass/60", 0),
+            p2.get("Breakouts/60", 0)
 
         ]
 
