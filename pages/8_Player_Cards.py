@@ -346,7 +346,7 @@ def comparison_tile(title, value):
     )
 
 # ==================================================
-# COMPACT RAW TILE
+# RAW TILE
 # ==================================================
 
 def raw_tile(title, value):
@@ -482,15 +482,10 @@ st.markdown("## Raw Production")
 raw_stats = [
 
     ("GP", "Games played"),
-
     ("TOI", "Time on ice"),
-
     ("Points", "Points"),
-
     ("Goals", "Goals"),
-
     ("Assists", "Assists"),
-
     ("xG", "xG (Expected goals)")
 
 ]
@@ -507,3 +502,138 @@ for title, stat in raw_stats:
 
     with c3:
         raw_tile(title, p2[stat])
+
+# ==================================================
+# BREAKDOWNS
+# ==================================================
+
+st.markdown("## Score Breakdowns")
+
+# ==================================================
+# SHOOTING BREAKDOWN
+# ==================================================
+
+with st.expander("Shooting Breakdown"):
+
+    shooting_df = pd.DataFrame({
+
+        "Metric": [
+
+            "Goals/60",
+            "Shots/60",
+            "xG/60",
+            "Scoring Chances/60",
+            "Inner Slot Shots/60"
+
+        ],
+
+        player1: [
+
+            p1["Goals/60"],
+            p1["Shots/60"],
+            p1["xG (Expected goals)/60"],
+            p1["Scoring chances - total/60"],
+            p1["Inner slot shots - total/60"]
+
+        ],
+
+        player2: [
+
+            p2["Goals/60"],
+            p2["Shots/60"],
+            p2["xG (Expected goals)/60"],
+            p2["Scoring chances - total/60"],
+            p2["Inner slot shots - total/60"]
+
+        ]
+
+    })
+
+    st.dataframe(
+        shooting_df,
+        use_container_width=True
+    )
+
+# ==================================================
+# PLAYMAKING BREAKDOWN
+# ==================================================
+
+with st.expander("Playmaking Breakdown"):
+
+    playmaking_df = pd.DataFrame({
+
+        "Metric": [
+
+            "Pre-shot Passes/60",
+            "Passes to Slot/60",
+            "First Assists/60",
+            "Accurate Pass %"
+
+        ],
+
+        player1: [
+
+            p1["Pre-shots passes/60"],
+            p1["Passes to the slot/60"],
+            p1["First assist/60"],
+            p1["Accurate passes, %"]
+
+        ],
+
+        player2: [
+
+            p2["Pre-shots passes/60"],
+            p2["Passes to the slot/60"],
+            p2["First assist/60"],
+            p2["Accurate passes, %"]
+
+        ]
+
+    })
+
+    st.dataframe(
+        playmaking_df,
+        use_container_width=True
+    )
+
+# ==================================================
+# TRANSITION BREAKDOWN
+# ==================================================
+
+with st.expander("Transition Breakdown"):
+
+    transition_df = pd.DataFrame({
+
+        "Metric": [
+
+            "Entries/60",
+            "Entries via Stickhandling/60",
+            "Entries via Pass/60",
+            "Breakouts/60"
+
+        ],
+
+        player1: [
+
+            p1["Entries/60"],
+            p1["Entries via stickhandling/60"],
+            p1["Entries via pass/60"],
+            p1["Breakouts/60"]
+
+        ],
+
+        player2: [
+
+            p2["Entries/60"],
+            p2["Entries via stickhandling/60"],
+            p2["Entries via pass/60"],
+            p2["Breakouts/60"]
+
+        ]
+
+    })
+
+    st.dataframe(
+        transition_df,
+        use_container_width=True
+    )
