@@ -16,7 +16,7 @@ st.set_page_config(
 # ==================================================
 
 df = pd.read_excel(
-    "SDHL_Player_Cards_Data.xlsx"
+    "SDHL_Processed_2025_2026.xlsx"
 )
 
 # ==================================================
@@ -27,6 +27,12 @@ df.columns = df.columns.str.strip()
 
 df["Position"] = (
     df["Position"]
+    .astype(str)
+    .str.strip()
+)
+
+df["Team"] = (
+    df["Team"]
     .astype(str)
     .str.strip()
 )
@@ -51,7 +57,7 @@ df.loc[forward_mask, "Overall Score"] = (
 
     df.loc[forward_mask, "Transition Score"] * 0.25 +
 
-    df.loc[forward_mask, "Puck Moving Score"] * 0.10 +
+    df.loc[forward_mask, "Puck Movement Score"] * 0.10 +
 
     df.loc[forward_mask, "Defense Score"] * 0.05 +
 
@@ -73,7 +79,7 @@ df.loc[defense_mask, "Overall Score"] = (
 
     df.loc[defense_mask, "Transition Score"] * 0.25 +
 
-    df.loc[defense_mask, "Puck Moving Score"] * 0.25 +
+    df.loc[defense_mask, "Puck Movement Score"] * 0.25 +
 
     df.loc[defense_mask, "Defense Score"] * 0.15 +
 
@@ -94,13 +100,23 @@ df["Overall Score Percentile"] = (
 )
 
 # ==================================================
-# SIDEBAR FILTERS
+# ROUND VALUES
+# ==================================================
+
+numeric_cols = df.select_dtypes(
+    include="number"
+).columns
+
+df[numeric_cols] = df[numeric_cols].round(1)
+
+# ==================================================
+# SIDEBAR
 # ==================================================
 
 st.sidebar.header("Filters")
 
 # ==================================================
-# MINIMUM TOI
+# TOI FILTER
 # ==================================================
 
 min_toi = st.sidebar.slider(
@@ -112,7 +128,7 @@ min_toi = st.sidebar.slider(
 )
 
 # ==================================================
-# MINIMUM GAMES
+# GAMES FILTER
 # ==================================================
 
 min_games = st.sidebar.slider(
@@ -182,7 +198,7 @@ selected_player = st.sidebar.selectbox(
 )
 
 # ==================================================
-# PLAYER DATA
+# PLAYER ROW
 # ==================================================
 
 p = filtered_df[
@@ -209,7 +225,7 @@ team_logos = {
 }
 
 # ==================================================
-# PAGE TITLE
+# TITLE
 # ==================================================
 
 st.title("🏒 SDHL Player Cards")
@@ -263,7 +279,7 @@ def get_label(value):
         return "WEAK"
 
 # ==================================================
-# PERCENTILE TILE
+# SKILL TILE
 # ==================================================
 
 def stat_tile(title, value):
@@ -327,7 +343,7 @@ def stat_tile(title, value):
     )
 
 # ==================================================
-# RAW STAT TILE
+# RAW TILE
 # ==================================================
 
 def raw_stat_tile(title, value):
@@ -433,7 +449,7 @@ with c3:
 c4, c5, c6 = st.columns(3)
 
 with c4:
-    stat_tile("Puck Movement", p["Puck Moving Score"])
+    stat_tile("Puck Movement", p["Puck Movement Score"])
 
 with c5:
     stat_tile("Defense", p["Defense Score"])
