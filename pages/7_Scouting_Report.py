@@ -101,10 +101,12 @@ df["Puck Movement Score"] = (
 )
 
 # ==================================================
-# OVERALL SCORE
+# POSITION-SPECIFIC OVERALL SCORE
 # ==================================================
 
 df["Overall Score"] = 0.0
+
+# FORWARDS
 
 forward_mask = df["Position"] == "F"
 
@@ -123,6 +125,8 @@ df.loc[forward_mask, "Overall Score"] = (
     df.loc[forward_mask, "Impact Score"] * 0.10
 
 )
+
+# DEFENSEMEN
 
 defense_mask = df["Position"] == "D"
 
@@ -153,6 +157,16 @@ df["Overall Percentile"] = (
     ].rank(pct=True) * 100
 
 )
+
+# ==================================================
+# ROUND VALUES
+# ==================================================
+
+numeric_cols = df.select_dtypes(
+    include="number"
+).columns
+
+df[numeric_cols] = df[numeric_cols].round(1)
 
 # ==================================================
 # SIDEBAR
@@ -209,6 +223,10 @@ st.subheader("🏒 Player Overview")
 
 col1, col2 = st.columns([1,3])
 
+# ==================================================
+# LEFT SIDE
+# ==================================================
+
 with col1:
 
     if p["Team"] in team_logos:
@@ -218,9 +236,15 @@ with col1:
             width=120
         )
 
+# ==================================================
+# RIGHT SIDE
+# ==================================================
+
 with col2:
 
-    st.markdown(f"## {selected_player}")
+    st.markdown(
+        f"## {selected_player}"
+    )
 
     st.markdown(
         f"### {p['Team']} | {p['Position']}"
@@ -229,11 +253,11 @@ with col2:
     st.markdown("---")
 
     st.markdown(
-        f"### Overall Score: {round(p['Overall Score'],1)}"
+        f"### Overall Score: {p['Overall Score']}"
     )
 
     st.markdown(
-        f"### League Percentile: {round(p['Overall Percentile'])}th"
+        f"### League Percentile: {int(round(p['Overall Percentile']))}th"
     )
 
 # ==================================================
@@ -281,149 +305,157 @@ st.markdown(
 )
 
 # ==================================================
-# STRENGTHS
+# STRENGTHS & WEAKNESSES
 # ==================================================
 
 st.markdown("---")
 
-st.subheader("✅ Strengths")
+strength_col, weakness_col = st.columns(2)
 
-strengths = []
+# ==================================================
+# STRENGTHS
+# ==================================================
 
-if p["Transition Score"] >= 80:
+with strength_col:
 
-    strengths.append(
-        "Elite transition ability"
-    )
+    st.subheader("✅ Strengths")
 
-elif p["Transition Score"] >= 65:
+    strengths = []
 
-    strengths.append(
-        "Strong transition game"
-    )
+    if p["Transition Score"] >= 80:
 
-if p["Puck Movement Score"] >= 80:
+        strengths.append(
+            "Elite transition ability"
+        )
 
-    strengths.append(
-        "Excellent puck movement under pressure"
-    )
+    elif p["Transition Score"] >= 65:
 
-elif p["Puck Movement Score"] >= 65:
+        strengths.append(
+            "Strong transition game"
+        )
 
-    strengths.append(
-        "Reliable puck moving ability"
-    )
+    if p["Puck Movement Score"] >= 80:
 
-if p["Playmaking Score"] >= 80:
+        strengths.append(
+            "Excellent puck movement under pressure"
+        )
 
-    strengths.append(
-        "Elite offensive playmaking"
-    )
+    elif p["Puck Movement Score"] >= 65:
 
-elif p["Playmaking Score"] >= 65:
+        strengths.append(
+            "Reliable puck moving ability"
+        )
 
-    strengths.append(
-        "Strong offensive creation"
-    )
+    if p["Playmaking Score"] >= 80:
 
-if p["Shooting Score"] >= 80:
+        strengths.append(
+            "Elite offensive playmaking"
+        )
 
-    strengths.append(
-        "High-end finishing ability"
-    )
+    elif p["Playmaking Score"] >= 65:
 
-elif p["Shooting Score"] >= 65:
+        strengths.append(
+            "Strong offensive creation"
+        )
 
-    strengths.append(
-        "Consistent scoring threat"
-    )
+    if p["Shooting Score"] >= 80:
 
-if p["Defense Score"] >= 80:
+        strengths.append(
+            "High-end finishing ability"
+        )
 
-    strengths.append(
-        "Excellent defensive impact"
-    )
+    elif p["Shooting Score"] >= 65:
 
-elif p["Defense Score"] >= 65:
+        strengths.append(
+            "Consistent scoring threat"
+        )
 
-    strengths.append(
-        "Reliable defensive play"
-    )
+    if p["Defense Score"] >= 80:
 
-if p["Impact Score"] >= 80:
+        strengths.append(
+            "Excellent defensive impact"
+        )
 
-    strengths.append(
-        "Drives positive overall team impact"
-    )
+    elif p["Defense Score"] >= 65:
 
-elif p["Impact Score"] >= 65:
+        strengths.append(
+            "Reliable defensive play"
+        )
 
-    strengths.append(
-        "Positive on-ice impact profile"
-    )
+    if p["Impact Score"] >= 80:
 
-if len(strengths) == 0:
+        strengths.append(
+            "Drives positive overall team impact"
+        )
 
-    strengths.append(
-        "No clearly elite strengths based on current statistical profile."
-    )
+    elif p["Impact Score"] >= 65:
 
-for item in strengths:
+        strengths.append(
+            "Positive on-ice impact profile"
+        )
 
-    st.markdown(f"• {item}")
+    if len(strengths) == 0:
+
+        strengths.append(
+            "No clearly elite strengths identified."
+        )
+
+    for item in strengths:
+
+        st.markdown(f"• {item}")
 
 # ==================================================
 # WEAKNESSES
 # ==================================================
 
-st.markdown("---")
+with weakness_col:
 
-st.subheader("❌ Weaknesses")
+    st.subheader("❌ Weaknesses")
 
-weaknesses = []
+    weaknesses = []
 
-if p["Transition Score"] <= 35:
+    if p["Transition Score"] <= 35:
 
-    weaknesses.append(
-        "Limited transition impact"
-    )
+        weaknesses.append(
+            "Limited transition impact"
+        )
 
-if p["Puck Movement Score"] <= 35:
+    if p["Puck Movement Score"] <= 35:
 
-    weaknesses.append(
-        "Limited puck moving ability"
-    )
+        weaknesses.append(
+            "Limited puck moving ability"
+        )
 
-if p["Playmaking Score"] <= 35:
+    if p["Playmaking Score"] <= 35:
 
-    weaknesses.append(
-        "Limited offensive creation"
-    )
+        weaknesses.append(
+            "Limited offensive creation"
+        )
 
-if p["Shooting Score"] <= 35:
+    if p["Shooting Score"] <= 35:
 
-    weaknesses.append(
-        "Below average finishing ability"
-    )
+        weaknesses.append(
+            "Below average finishing ability"
+        )
 
-if p["Defense Score"] <= 35:
+    if p["Defense Score"] <= 35:
 
-    weaknesses.append(
-        "Below average defensive impact"
-    )
+        weaknesses.append(
+            "Below average defensive impact"
+        )
 
-if p["Impact Score"] <= 35:
+    if p["Impact Score"] <= 35:
 
-    weaknesses.append(
-        "Limited positive on-ice impact"
-    )
+        weaknesses.append(
+            "Limited positive on-ice impact"
+        )
 
-if len(weaknesses) == 0:
+    if len(weaknesses) == 0:
 
-    weaknesses.append(
-        "No major statistical weaknesses identified."
-    )
+        weaknesses.append(
+            "No major statistical weaknesses identified."
+        )
 
-for item in weaknesses:
+    for item in weaknesses:
 
-    st.markdown(f"• {item}")
+        st.markdown(f"• {item}")
