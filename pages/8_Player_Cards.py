@@ -5,7 +5,7 @@ import pandas as pd
 # ==================================================
 
 df = pd.read_excel(
-    "Skaters - SDHL 2025-2026 uusi.xlsx"
+    "SDHL_Player_Cards_Data.xlsx"
 )
 
 # ==================================================
