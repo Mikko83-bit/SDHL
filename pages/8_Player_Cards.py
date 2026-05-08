@@ -51,7 +51,7 @@ df.loc[forward_mask, "Overall Score"] = (
 
     df.loc[forward_mask, "Transition Score"] * 0.25 +
 
-    df.loc[forward_mask, "Puck Movement Score"] * 0.10 +
+    df.loc[forward_mask, "Puck Moving Score"] * 0.10 +
 
     df.loc[forward_mask, "Defense Score"] * 0.05 +
 
@@ -73,7 +73,7 @@ df.loc[defense_mask, "Overall Score"] = (
 
     df.loc[defense_mask, "Transition Score"] * 0.25 +
 
-    df.loc[defense_mask, "Puck Movement Score"] * 0.25 +
+    df.loc[defense_mask, "Puck Moving Score"] * 0.25 +
 
     df.loc[defense_mask, "Defense Score"] * 0.15 +
 
@@ -433,7 +433,7 @@ with c3:
 c4, c5, c6 = st.columns(3)
 
 with c4:
-    stat_tile("Puck Movement", p["Puck Movement Score"])
+    stat_tile("Puck Movement", p["Puck Moving Score"])
 
 with c5:
     stat_tile("Defense", p["Defense Score"])
