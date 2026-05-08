@@ -106,14 +106,31 @@ numeric_cols = df.select_dtypes(
 df[numeric_cols] = df[numeric_cols].round(1)
 
 # ==================================================
+# TEAM LOGOS
+# ==================================================
+
+team_logos = {
+
+    "Brynas": "images/Brynas.png",
+    "Djurgarden": "images/Djurgarden.png",
+    "Farjestad": "images/Farjestad.png",
+    "Frolunda": "images/Frolunda.png",
+    "HV71": "images/HV71.png",
+    "Linkoping": "images/Linkoping.png",
+    "Lulea/MSSK": "images/Lulea.png",
+    "MODO": "images/MODO.png",
+    "SDE HF": "images/SDE HF.png",
+    "Skelleftea AIK": "images/Skelleftea AIK.png"
+
+}
+
+# ==================================================
 # SIDEBAR
 # ==================================================
 
 st.sidebar.header("Filters")
 
-# ==================================================
 # TOI FILTER
-# ==================================================
 
 min_toi = st.sidebar.slider(
     "Minimum TOI",
@@ -123,9 +140,7 @@ min_toi = st.sidebar.slider(
     step=10
 )
 
-# ==================================================
 # GAMES FILTER
-# ==================================================
 
 min_games = st.sidebar.slider(
     "Minimum Games",
@@ -135,9 +150,7 @@ min_games = st.sidebar.slider(
     step=1
 )
 
-# ==================================================
 # APPLY FILTERS
-# ==================================================
 
 df = df[
     (df["Time on ice"] >= min_toi) &
@@ -287,7 +300,7 @@ def comparison_tile(title, value):
     <div style="
         background:{color};
         border-radius:8px;
-        height:72px;
+        height:68px;
         padding:4px;
         display:flex;
         flex-direction:column;
@@ -299,7 +312,7 @@ def comparison_tile(title, value):
     ">
 
         <div style="
-            font-size:11px;
+            font-size:10px;
             font-weight:700;
             text-align:center;
         ">
@@ -307,7 +320,7 @@ def comparison_tile(title, value):
         </div>
 
         <div style="
-            font-size:24px;
+            font-size:22px;
             font-weight:800;
             line-height:1;
             margin-top:2px;
@@ -316,7 +329,7 @@ def comparison_tile(title, value):
         </div>
 
         <div style="
-            font-size:9px;
+            font-size:8px;
             font-weight:700;
             margin-top:2px;
             letter-spacing:1px;
@@ -329,7 +342,7 @@ def comparison_tile(title, value):
 
     components.html(
         html,
-        height=78
+        height=74
     )
 
 # ==================================================
@@ -347,7 +360,7 @@ def raw_tile(title, value):
     <div style="
         background:#1B1F2A;
         border-radius:8px;
-        height:72px;
+        height:68px;
         padding:4px;
         display:flex;
         flex-direction:column;
@@ -360,7 +373,7 @@ def raw_tile(title, value):
     ">
 
         <div style="
-            font-size:11px;
+            font-size:10px;
             font-weight:700;
             color:#C7D0E0;
         ">
@@ -368,7 +381,7 @@ def raw_tile(title, value):
         </div>
 
         <div style="
-            font-size:24px;
+            font-size:22px;
             font-weight:800;
             margin-top:2px;
         ">
@@ -380,7 +393,7 @@ def raw_tile(title, value):
 
     components.html(
         html,
-        height=78
+        height=74
     )
 
 # ==================================================
@@ -397,18 +410,34 @@ h1, h2, h3 = st.columns([5,1,5])
 
 with h1:
 
+    if p1["Team"] in team_logos:
+
+        st.image(
+            team_logos[p1["Team"]],
+            width=80
+        )
+
     st.markdown(f"### {player1}")
+
     st.markdown(
         f"{p1['Team']} | {p1['Position']}"
     )
 
 with h2:
 
-    st.markdown("### VS")
+    st.markdown("## VS")
 
 with h3:
 
+    if p2["Team"] in team_logos:
+
+        st.image(
+            team_logos[p2["Team"]],
+            width=80
+        )
+
     st.markdown(f"### {player2}")
+
     st.markdown(
         f"{p2['Team']} | {p2['Position']}"
     )
@@ -453,9 +482,15 @@ st.markdown("## Raw Production")
 raw_stats = [
 
     ("GP", "Games played"),
+
+    ("TOI", "Time on ice"),
+
     ("Points", "Points"),
+
     ("Goals", "Goals"),
+
     ("Assists", "Assists"),
+
     ("xG", "xG (Expected goals)")
 
 ]
