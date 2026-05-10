@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import streamlit.components.v1 as components
 
 # ==================================================
 # PAGE CONFIG
@@ -12,6 +11,10 @@ st.set_page_config(
 )
 
 st.title("⚡ Linetool")
+
+st.markdown(
+    "Modern 5v5 line chemistry and lineup impact dashboard."
+)
 
 # ==================================================
 # LOAD DATA
@@ -55,7 +58,7 @@ for col in numeric_cols:
 # ADVANCED METRICS
 # ==================================================
 
-# GOALS FOR %
+# GF%
 
 df["GF%"] = (
 
@@ -94,7 +97,7 @@ df["CORSI %"] = (
 
 ) * 100
 
-# GOALS / 60
+# GOALS/60
 
 df["Goals/60"] = (
 
@@ -103,7 +106,16 @@ df["Goals/60"] = (
 
 ) * 60
 
-# SHOTS / 60
+# GA/60
+
+df["GA/60"] = (
+
+    df["Opponent's goals"] /
+    df["Time on ice"]
+
+) * 60
+
+# SHOTS/60
 
 df["Shots/60"] = (
 
@@ -112,7 +124,7 @@ df["Shots/60"] = (
 
 ) * 60
 
-# SHOTS AGAINST / 60
+# SHOTS AGAINST/60
 
 df["Shots Against/60"] = (
 
@@ -121,8 +133,17 @@ df["Shots Against/60"] = (
 
 ) * 60
 
+# NET GOALS
+
+df["Goal Differential"] = (
+
+    df["Goals"] -
+    df["Opponent's goals"]
+
+)
+
 # ==================================================
-# ROUND VALUES
+# ROUND
 # ==================================================
 
 numeric_round = df.select_dtypes(
@@ -139,7 +160,7 @@ df[numeric_round] = df[
 
 st.sidebar.header("Filters")
 
-# MINIMUM TOI
+# TOI FILTER
 
 min_toi = st.sidebar.slider(
 
@@ -149,13 +170,13 @@ min_toi = st.sidebar.slider(
 
     max_value=int(df["Time on ice"].max()),
 
-    value=20,
+    value=50,
 
     step=5
 
 )
 
-# MINIMUM SHIFTS
+# SHIFTS FILTER
 
 min_shifts = st.sidebar.slider(
 
@@ -165,13 +186,19 @@ min_shifts = st.sidebar.slider(
 
     max_value=int(df["Numbers of shifts"].max()),
 
-    value=50,
+    value=100,
 
     step=10
 
 )
 
-# SORT OPTIONS
+# SEARCH PLAYER
+
+search_player = st.sidebar.text_input(
+    "Search Player"
+)
+
+# SORT OPTION
 
 sort_options = [
 
@@ -180,6 +207,7 @@ sort_options = [
     "Shot Share %",
     "Goals/60",
     "Shots/60",
+    "Goal Differential",
     "Plus/Minus",
     "Time on ice"
 
@@ -191,7 +219,7 @@ selected_sort = st.sidebar.selectbox(
 )
 
 # ==================================================
-# FILTER DATA
+# APPLY FILTERS
 # ==================================================
 
 filtered_df = df[
@@ -201,298 +229,159 @@ filtered_df = df[
 
 ]
 
+# PLAYER SEARCH
+
+if search_player:
+
+    filtered_df = filtered_df[
+
+        filtered_df["Line"]
+        .str.contains(
+            search_player,
+            case=False,
+            na=False
+        )
+
+    ]
+
+# SORT
+
 filtered_df = filtered_df.sort_values(
     by=selected_sort,
     ascending=False
 )
 
 # ==================================================
-# COLOR FUNCTION
+# DISPLAY TABLE
 # ==================================================
 
-def get_color(value):
+display_cols = [
 
-    if value >= 60:
-        return "#15803D"
+    "Line",
+    "Time on ice",
+    "Numbers of shifts",
+    "Goals",
+    "Opponent's goals",
+    "Goal Differential",
+    "GF%",
+    "CORSI %",
+    "Shot Share %",
+    "Goals/60",
+    "GA/60",
+    "Shots/60",
+    "Shots Against/60",
+    "Plus/Minus"
 
-    elif value >= 52:
-        return "#2563EB"
+]
 
-    elif value >= 48:
-        return "#EAB308"
+table_df = filtered_df[
+    display_cols
+].copy()
+
+# ==================================================
+# STYLE FUNCTION
+# ==================================================
+
+def color_scale(val):
+
+    if pd.isna(val):
+        return ""
+
+    # ELITE
+
+    if val >= 60:
+        return "background-color: #15803D; color: white"
+
+    # GOOD
+
+    elif val >= 52:
+        return "background-color: #2563EB; color: white"
+
+    # AVERAGE
+
+    elif val >= 48:
+        return "background-color: #CA8A04; color: white"
+
+    # BAD
 
     else:
-        return "#DC2626"
+        return "background-color: #DC2626; color: white"
 
 # ==================================================
-# TITLE
+# STYLED TABLE
 # ==================================================
 
-st.subheader("🔥 Best Line Combinations")
+styled_table = table_df.style.map(
+
+    color_scale,
+
+    subset=[
+
+        "GF%",
+        "CORSI %",
+        "Shot Share %"
+
+    ]
+
+)
 
 # ==================================================
-# LINE CARDS
+# TOP STATS
 # ==================================================
 
-for _, row in filtered_df.iterrows():
+top1, top2, top3, top4 = st.columns(4)
 
-    gf_color = get_color(
-        row["GF%"]
+with top1:
+
+    st.metric(
+        "Lines",
+        len(filtered_df)
     )
 
-    corsi_color = get_color(
-        row["CORSI %"]
+with top2:
+
+    st.metric(
+        "Best GF%",
+        round(filtered_df["GF%"].max(),1)
     )
 
-    shot_color = get_color(
-        row["Shot Share %"]
+with top3:
+
+    st.metric(
+        "Best CORSI %",
+        round(filtered_df["CORSI %"].max(),1)
     )
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+with top4:
 
-    # ==================================================
-    # GF%
-    # ==================================================
+    st.metric(
+        "Highest TOI",
+        round(filtered_df["Time on ice"].max(),1)
+    )
 
-    with c1:
+st.markdown("---")
 
-        components.html(
+# ==================================================
+# MAIN TABLE
+# ==================================================
 
-            f"""
-            <div style="
-                background:{gf_color};
-                border-radius:14px;
-                padding:14px;
-                height:150px;
-                color:white;
-                font-family:Arial;
-            ">
+st.subheader("🔥 Line Combination Rankings")
 
-                <div style="
-                    font-size:18px;
-                    font-weight:800;
-                    margin-bottom:10px;
-                ">
-                    GF%
-                </div>
+st.dataframe(
 
-                <div style="
-                    font-size:38px;
-                    font-weight:900;
-                ">
-                    {row['GF%']}%
-                </div>
+    styled_table,
 
-                <div style="
-                    font-size:12px;
-                    margin-top:10px;
-                    line-height:1.4;
-                ">
-                    {row['Line']}
-                </div>
+    use_container_width=True,
 
-            </div>
-            """,
+    height=900
 
-            height=165
-
-        )
-
-    # ==================================================
-    # CORSI %
-    # ==================================================
-
-    with c2:
-
-        components.html(
-
-            f"""
-            <div style="
-                background:{corsi_color};
-                border-radius:14px;
-                padding:14px;
-                height:150px;
-                color:white;
-                font-family:Arial;
-            ">
-
-                <div style="
-                    font-size:18px;
-                    font-weight:800;
-                    margin-bottom:10px;
-                ">
-                    CORSI %
-                </div>
-
-                <div style="
-                    font-size:38px;
-                    font-weight:900;
-                ">
-                    {row['CORSI %']}%
-                </div>
-
-                <div style="
-                    font-size:13px;
-                    margin-top:10px;
-                ">
-                    TOI: {row['Time on ice']} min
-                </div>
-
-            </div>
-            """,
-
-            height=165
-
-        )
-
-    # ==================================================
-    # SHOT SHARE
-    # ==================================================
-
-    with c3:
-
-        components.html(
-
-            f"""
-            <div style="
-                background:{shot_color};
-                border-radius:14px;
-                padding:14px;
-                height:150px;
-                color:white;
-                font-family:Arial;
-            ">
-
-                <div style="
-                    font-size:18px;
-                    font-weight:800;
-                    margin-bottom:10px;
-                ">
-                    Shot Share %
-                </div>
-
-                <div style="
-                    font-size:38px;
-                    font-weight:900;
-                ">
-                    {row['Shot Share %']}%
-                </div>
-
-                <div style="
-                    font-size:13px;
-                    margin-top:10px;
-                ">
-                    +/-: {row['Plus/Minus']}
-                </div>
-
-            </div>
-            """,
-
-            height=165
-
-        )
-
-    # ==================================================
-    # GOALS / 60
-    # ==================================================
-
-    with c4:
-
-        components.html(
-
-            f"""
-            <div style="
-                background:#2563EB;
-                border-radius:14px;
-                padding:14px;
-                height:150px;
-                color:white;
-                font-family:Arial;
-            ">
-
-                <div style="
-                    font-size:18px;
-                    font-weight:800;
-                    margin-bottom:10px;
-                ">
-                    Goals/60
-                </div>
-
-                <div style="
-                    font-size:38px;
-                    font-weight:900;
-                ">
-                    {row['Goals/60']}
-                </div>
-
-                <div style="
-                    font-size:13px;
-                    margin-top:10px;
-                ">
-                    Goals: {row['Goals']}
-                </div>
-
-            </div>
-            """,
-
-            height=165
-
-        )
-
-    # ==================================================
-    # SHOTS / 60
-    # ==================================================
-
-    with c5:
-
-        components.html(
-
-            f"""
-            <div style="
-                background:#7C3AED;
-                border-radius:14px;
-                padding:14px;
-                height:150px;
-                color:white;
-                font-family:Arial;
-            ">
-
-                <div style="
-                    font-size:18px;
-                    font-weight:800;
-                    margin-bottom:10px;
-                ">
-                    Shots/60
-                </div>
-
-                <div style="
-                    font-size:38px;
-                    font-weight:900;
-                ">
-                    {row['Shots/60']}
-                </div>
-
-                <div style="
-                    font-size:13px;
-                    margin-top:10px;
-                ">
-                    Shifts: {int(row['Numbers of shifts'])}
-                </div>
-
-            </div>
-            """,
-
-            height=165
-
-        )
+)
 
 # ==================================================
 # RAW DATA
 # ==================================================
 
-st.markdown("---")
-
-with st.expander("View Raw Data"):
+with st.expander("View Full Raw Data"):
 
     st.dataframe(
         filtered_df,
