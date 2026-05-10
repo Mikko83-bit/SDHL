@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 
 # ==================================================
 # PAGE CONFIG
@@ -220,45 +221,46 @@ def metric_box(title, value, percentile):
     color = percentile_color(percentile)
 
     html = f"""
-    <div style='
+    <div style="
         background:{color};
         padding:8px;
         border-radius:8px;
-        margin-bottom:8px;
         height:95px;
-    '>
+        font-family:Arial;
+        color:white;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+    ">
 
-        <div style='
+        <div style="
             font-size:11px;
-            color:white;
             font-weight:700;
-        '>
+        ">
             {title}
         </div>
 
-        <div style='
+        <div style="
             font-size:24px;
-            color:white;
             font-weight:800;
-            margin-top:2px;
-        '>
+            margin-top:4px;
+        ">
             {round(value,2)}
         </div>
 
-        <div style='
+        <div style="
             font-size:11px;
-            color:white;
-            margin-top:2px;
-        '>
+            margin-top:4px;
+        ">
             {round(percentile)}th percentile
         </div>
 
     </div>
     """
 
-    st.markdown(
+    components.html(
         html,
-        unsafe_allow_html=True
+        height=105
     )
 
 # ==================================================
@@ -486,4 +488,3 @@ with i3:
         p["Overall Score"],
         p["Overall Score Percentile"]
     )
-    
