@@ -13,6 +13,25 @@ st.set_page_config(
 st.title("📊 Player Style Profile")
 
 # ==================================================
+# TEAM LOGOS
+# ==================================================
+
+team_logos = {
+
+    "Brynas": "images/Brynas.png",
+    "Djurgarden": "images/Djurgarden.png",
+    "Farjestad": "images/Farjestad.png",
+    "Frolunda": "images/Frolunda.png",
+    "HV71": "images/HV71.png",
+    "Linkoping": "images/Linkoping.png",
+    "Lulea/MSSK": "images/Lulea.png",
+    "MODO": "images/MODO.png",
+    "SDE HF": "images/SDE HF.png",
+    "Skelleftea AIK": "images/Skelleftea AIK.png"
+
+}
+
+# ==================================================
 # LOAD DATA
 # ==================================================
 
@@ -50,7 +69,7 @@ df["OZ possession/60"] = (
 ) * 60
 
 # ==================================================
-# ROUND NUMBERS
+# ROUND VALUES
 # ==================================================
 
 numeric_cols = df.select_dtypes(
@@ -116,60 +135,132 @@ p = filtered_df[
 # HEADER
 # ==================================================
 
-st.markdown("---")
+header1, header2 = st.columns([1,4])
 
-col1, col2, col3 = st.columns(3)
+with header1:
 
-with col1:
+    if p["Team"] in team_logos:
 
-    st.metric(
-        "Player",
-        selected_player
+        st.image(
+            team_logos[p["Team"]],
+            width=90
+        )
+
+with header2:
+
+    st.markdown(
+        f"## {selected_player}"
     )
 
-with col2:
-
-    st.metric(
-        "Team",
-        p["Team"]
+    st.markdown(
+        f"### {p['Team']} | {p['Position']}"
     )
 
-with col3:
+    info1, info2, info3 = st.columns(3)
 
-    st.metric(
-        "Position",
-        p["Position"]
-    )
+    with info1:
+
+        st.metric(
+            "TOI",
+            round(p["Time on ice"],1)
+        )
+
+    with info2:
+
+        st.metric(
+            "Games",
+            int(p["Games played"])
+        )
+
+    with info3:
+
+        st.metric(
+            "Points",
+            int(p["Points"])
+        )
 
 st.markdown("---")
 
 # ==================================================
-# TABLE BUILDER
+# COLOR FUNCTION
 # ==================================================
 
-def create_metric_table(metrics):
+def percentile_color(value):
 
-    rows = []
+    if value >= 90:
+        return "#0B5ED7"
 
-    for label, value_col, percentile_col in metrics:
+    elif value >= 75:
+        return "#3D8BFD"
 
-        value = p.get(value_col, 0)
+    elif value >= 60:
+        return "#74A7FF"
 
-        percentile = p.get(percentile_col, 0)
+    elif value >= 40:
+        return "#AFC8FF"
 
-        rows.append({
+    elif value >= 25:
+        return "#FFB3B3"
 
-            "Metric": label,
+    else:
+        return "#E03131"
 
-            "Value": round(float(value), 2),
+# ==================================================
+# METRIC BOX
+# ==================================================
 
-            "Percentile": round(float(percentile), 1)
+def metric_box(title, value, percentile):
 
-        })
+    if pd.isna(value):
+        value = 0
 
-    metric_df = pd.DataFrame(rows)
+    if pd.isna(percentile):
+        percentile = 0
 
-    return metric_df
+    color = percentile_color(percentile)
+
+    st.markdown(
+
+        f"""
+        <div style="
+            background:{color};
+            padding:8px;
+            border-radius:8px;
+            margin-bottom:8px;
+            height:95px;
+        ">
+
+            <div style="
+                font-size:11px;
+                color:white;
+                font-weight:700;
+            ">
+                {title}
+            </div>
+
+            <div style="
+                font-size:24px;
+                color:white;
+                font-weight:800;
+                margin-top:2px;
+            ">
+                {round(value,2)}
+            </div>
+
+            <div style="
+                font-size:11px;
+                color:white;
+                margin-top:2px;
+            ">
+                {round(percentile)}th percentile
+            </div>
+
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
 
 # ==================================================
 # SHOOTING
@@ -177,49 +268,47 @@ def create_metric_table(metrics):
 
 st.subheader("🔥 Shooting")
 
-shooting_metrics = [
+s1, s2, s3, s4, s5 = st.columns(5)
 
-    (
+with s1:
+
+    metric_box(
         "Goals/60",
-        "Goals/60",
-        "Goals/60 Percentile"
-    ),
-
-    (
-        "Shots/60",
-        "Shots/60",
-        "Shots/60 Percentile"
-    ),
-
-    (
-        "xG/60",
-        "xG (Expected goals)/60",
-        "xG (Expected goals)/60 Percentile"
-    ),
-
-    (
-        "Inner Slot Shots/60",
-        "Inner slot shots - total/60",
-        "Inner slot shots - total/60 Percentile"
-    ),
-
-    (
-        "Scoring Chances/60",
-        "Scoring chances - total/60",
-        "Scoring chances - total/60 Percentile"
+        p["Goals/60"],
+        p["Goals/60 Percentile"]
     )
 
-]
+with s2:
 
-shooting_df = create_metric_table(
-    shooting_metrics
-)
+    metric_box(
+        "Shots/60",
+        p["Shots/60"],
+        p["Shots/60 Percentile"]
+    )
 
-st.dataframe(
-    shooting_df,
-    use_container_width=True,
-    hide_index=True
-)
+with s3:
+
+    metric_box(
+        "xG/60",
+        p["xG (Expected goals)/60"],
+        p["xG (Expected goals)/60 Percentile"]
+    )
+
+with s4:
+
+    metric_box(
+        "Inner Slot Shots/60",
+        p["Inner slot shots - total/60"],
+        p["Inner slot shots - total/60 Percentile"]
+    )
+
+with s5:
+
+    metric_box(
+        "Scoring Chances/60",
+        p["Scoring chances - total/60"],
+        p["Scoring chances - total/60 Percentile"]
+    )
 
 # ==================================================
 # PLAYMAKING
@@ -229,37 +318,31 @@ st.markdown("---")
 
 st.subheader("🎯 Playmaking")
 
-playmaking_metrics = [
+p1, p2, p3 = st.columns(3)
 
-    (
+with p1:
+
+    metric_box(
         "Pre-Shot Passes/60",
-        "Pre-shots passes/60",
-        "Pre-shots passes/60 Percentile"
-    ),
-
-    (
-        "Slot Passes/60",
-        "Passes to the slot/60",
-        "Passes to the slot/60 Percentile"
-    ),
-
-    (
-        "First Assists/60",
-        "First assist/60",
-        "First assist/60 Percentile"
+        p["Pre-shots passes/60"],
+        p["Pre-shots passes/60 Percentile"]
     )
 
-]
+with p2:
 
-playmaking_df = create_metric_table(
-    playmaking_metrics
-)
+    metric_box(
+        "Slot Passes/60",
+        p["Passes to the slot/60"],
+        p["Passes to the slot/60 Percentile"]
+    )
 
-st.dataframe(
-    playmaking_df,
-    use_container_width=True,
-    hide_index=True
-)
+with p3:
+
+    metric_box(
+        "First Assists/60",
+        p["First assist/60"],
+        p["First assist/60 Percentile"]
+    )
 
 # ==================================================
 # TRANSITION
@@ -269,49 +352,47 @@ st.markdown("---")
 
 st.subheader("🚀 Transition")
 
-transition_metrics = [
+t1, t2, t3, t4, t5 = st.columns(5)
 
-    (
-        "Entries via Carry/60",
-        "Entries via stickhandling/60",
-        "Entries via stickhandling/60 Percentile"
-    ),
+with t1:
 
-    (
-        "Entries via Pass/60",
-        "Entries via pass/60",
-        "Entries via pass/60 Percentile"
-    ),
-
-    (
-        "Breakouts via Carry/60",
-        "Breakouts via stickhandling/60",
-        "Breakouts via stickhandling/60 Percentile"
-    ),
-
-    (
-        "Breakouts via Pass/60",
-        "Breakouts via pass/60",
-        "Breakouts via pass/60 Percentile"
-    ),
-
-    (
-        "Breakouts/60",
-        "Breakouts/60",
-        "Breakouts/60 Percentile"
+    metric_box(
+        "Entries Carry/60",
+        p["Entries via stickhandling/60"],
+        p["Entries via stickhandling/60 Percentile"]
     )
 
-]
+with t2:
 
-transition_df = create_metric_table(
-    transition_metrics
-)
+    metric_box(
+        "Entries Pass/60",
+        p["Entries via pass/60"],
+        p["Entries via pass/60 Percentile"]
+    )
 
-st.dataframe(
-    transition_df,
-    use_container_width=True,
-    hide_index=True
-)
+with t3:
+
+    metric_box(
+        "Breakouts Carry/60",
+        p["Breakouts via stickhandling/60"],
+        p["Breakouts via stickhandling/60 Percentile"]
+    )
+
+with t4:
+
+    metric_box(
+        "Breakouts Pass/60",
+        p["Breakouts via pass/60"],
+        p["Breakouts via pass/60 Percentile"]
+    )
+
+with t5:
+
+    metric_box(
+        "Breakouts/60",
+        p["Breakouts/60"],
+        p["Breakouts/60 Percentile"]
+    )
 
 # ==================================================
 # POSSESSION
@@ -321,31 +402,23 @@ st.markdown("---")
 
 st.subheader("🏒 Possession")
 
-possession_metrics = [
+o1, o2 = st.columns(2)
 
-    (
+with o1:
+
+    metric_box(
         "Puck Touches/60",
-        "Puck touches/60",
-        "Puck touches/60 Percentile"
-    ),
-
-    (
-        "OZ Possession/60",
-        "OZ possession/60",
-        "OZ possession/60 Percentile"
+        p["Puck touches/60"],
+        p["Puck touches/60 Percentile"]
     )
 
-]
+with o2:
 
-possession_df = create_metric_table(
-    possession_metrics
-)
-
-st.dataframe(
-    possession_df,
-    use_container_width=True,
-    hide_index=True
-)
+    metric_box(
+        "OZ Possession/60",
+        p["OZ possession/60"],
+        p["OZ possession/60 Percentile"]
+    )
 
 # ==================================================
 # DEFENSE
@@ -355,71 +428,39 @@ st.markdown("---")
 
 st.subheader("🛡️ Defense")
 
-defense_metrics = [
+d1, d2, d3, d4 = st.columns(4)
 
-    (
+with d1:
+
+    metric_box(
         "Takeaways/60",
-        "Takeaways/60",
-        "Takeaways/60 Percentile"
-    ),
-
-    (
-        "DZ Takeaways",
-        "Takeaways in DZ",
-        "Takeaways in DZ Percentile"
-    ),
-
-    (
-        "Opponent xG On-Ice",
-        "Opponent's xG when on ice",
-        "Opponent's xG when on ice Percentile"
-    ),
-
-    (
-        "Puck Losses/60",
-        "Puck losses/60",
-        100 - p.get("Puck losses/60 Percentile", 0)
+        p["Takeaways/60"],
+        p["Takeaways/60 Percentile"]
     )
 
-]
+with d2:
 
-# ==================================================
-# SPECIAL DEFENSE TABLE
-# ==================================================
+    metric_box(
+        "DZ Takeaways",
+        p["Takeaways in DZ"],
+        p["Takeaways in DZ Percentile"]
+    )
 
-defense_rows = []
+with d3:
 
-for item in defense_metrics:
+    metric_box(
+        "Opponent xG",
+        p["Opponent's xG when on ice"],
+        p["Opponent's xG when on ice Percentile"]
+    )
 
-    if len(item) == 3 and isinstance(item[2], str):
+with d4:
 
-        label, value_col, percentile_col = item
-
-        percentile = p.get(percentile_col, 0)
-
-    else:
-
-        label, value_col, percentile = item
-
-    defense_rows.append({
-
-        "Metric": label,
-
-        "Value": round(float(p.get(value_col, 0)), 2),
-
-        "Percentile": round(float(percentile), 1)
-
-    })
-
-defense_df = pd.DataFrame(
-    defense_rows
-)
-
-st.dataframe(
-    defense_df,
-    use_container_width=True,
-    hide_index=True
-)
+    metric_box(
+        "Puck Losses/60",
+        p["Puck losses/60"],
+        100 - p["Puck losses/60 Percentile"]
+    )
 
 # ==================================================
 # IMPACT
@@ -429,34 +470,28 @@ st.markdown("---")
 
 st.subheader("📈 Impact")
 
-impact_metrics = [
+i1, i2, i3 = st.columns(3)
 
-    (
+with i1:
+
+    metric_box(
         "Net xG",
-        "Net xG (xG player on - opp. team's xG)",
-        "Net xG (xG player on - opp. team's xG) Percentile"
-    ),
-
-    (
-        "Team xG On-Ice",
-        "Team xG when on ice",
-        "Team xG when on ice Percentile"
-    ),
-
-    (
-        "Overall Score",
-        "Overall Score",
-        "Overall Score Percentile"
+        p["Net xG (xG player on - opp. team's xG)"],
+        p["Net xG (xG player on - opp. team's xG) Percentile"]
     )
 
-]
+with i2:
 
-impact_df = create_metric_table(
-    impact_metrics
-)
+    metric_box(
+        "Team xG On-Ice",
+        p["Team xG when on ice"],
+        p["Team xG when on ice Percentile"]
+    )
 
-st.dataframe(
-    impact_df,
-    use_container_width=True,
-    hide_index=True
-)
+with i3:
+
+    metric_box(
+        "Overall Score",
+        p["Overall Score"],
+        p["Overall Score Percentile"]
+    )
