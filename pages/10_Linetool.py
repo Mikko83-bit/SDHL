@@ -6,11 +6,11 @@ import pandas as pd
 # ==================================================
 
 st.set_page_config(
-    page_title="Line Chemistry",
+    page_title="Linetool",
     layout="wide"
 )
 
-st.title("⚡ Line Chemistry")
+st.title("⚡ Linetool")
 
 # ==================================================
 # LOAD DATA
@@ -51,7 +51,7 @@ for col in numeric_cols:
     )
 
 # ==================================================
-# CREATE ADVANCED METRICS
+# ADVANCED METRICS
 # ==================================================
 
 # GOALS FOR %
@@ -129,18 +129,29 @@ df["Shots Against/60"] = (
 
 ) * 60
 
+# SHOTS ON GOAL / 60
+
+df["Shots on Goal/60"] = (
+
+    df["Shots on goal"] /
+    df["Time on ice"]
+
+) * 60
+
 # ==================================================
-# ROUND
+# ROUND VALUES
 # ==================================================
 
-round_cols = df.select_dtypes(
+numeric_round = df.select_dtypes(
     include="number"
 ).columns
 
-df[round_cols] = df[round_cols].round(2)
+df[numeric_round] = df[
+    numeric_round
+].round(2)
 
 # ==================================================
-# SIDEBAR FILTERS
+# SIDEBAR
 # ==================================================
 
 st.sidebar.header("Filters")
@@ -161,21 +172,32 @@ min_toi = st.sidebar.slider(
 
 )
 
-# FILTER
+# MINIMUM SHIFTS
 
-filtered_df = df[
-    df["Time on ice"] >= min_toi
-]
+min_shifts = st.sidebar.slider(
 
-# SORT OPTION
+    "Minimum Shifts",
+
+    min_value=0,
+
+    max_value=int(df["Numbers of shifts"].max()),
+
+    value=50,
+
+    step=10
+
+)
+
+# SORT OPTIONS
 
 sort_options = [
 
     "GF%",
     "CORSI %",
-    "Goals/60",
     "Shot Share %",
+    "Goals/60",
     "Shots/60",
+    "Shots on Goal/60",
     "Plus/Minus",
     "Time on ice"
 
@@ -186,28 +208,37 @@ selected_sort = st.sidebar.selectbox(
     sort_options
 )
 
+# APPLY FILTERS
+
+filtered_df = df[
+
+    (df["Time on ice"] >= min_toi) &
+    (df["Numbers of shifts"] >= min_shifts)
+
+]
+
 filtered_df = filtered_df.sort_values(
     by=selected_sort,
     ascending=False
 )
 
 # ==================================================
-# COLOR FUNCTIONS
+# COLOR FUNCTION
 # ==================================================
 
 def get_color(value):
 
     if value >= 60:
-        return "#1E8E3E"
+        return "#15803D"
 
     elif value >= 52:
-        return "#4CAF50"
+        return "#4ADE80"
 
     elif value >= 48:
-        return "#FBC02D"
+        return "#FACC15"
 
     else:
-        return "#C62828"
+        return "#DC2626"
 
 # ==================================================
 # LINE CARD
@@ -215,12 +246,12 @@ def get_color(value):
 
 def line_card(row):
 
-    corsi_color = get_color(
-        row["CORSI %"]
-    )
-
     gf_color = get_color(
         row["GF%"]
+    )
+
+    corsi_color = get_color(
+        row["CORSI %"]
     )
 
     shot_color = get_color(
@@ -232,56 +263,58 @@ def line_card(row):
         f"""
         <div style="
             background:#111827;
-            padding:18px;
-            border-radius:14px;
+            padding:20px;
+            border-radius:16px;
             margin-bottom:18px;
-            border:1px solid #2A3441;
+            border:1px solid #2D3748;
         ">
 
             <div style="
-                font-size:22px;
+                font-size:24px;
                 font-weight:800;
                 color:white;
-                margin-bottom:10px;
+                margin-bottom:12px;
             ">
                 {row['Line']}
             </div>
 
             <div style="
-                color:#D1D5DB;
                 font-size:14px;
-                margin-bottom:14px;
+                color:#CBD5E1;
+                margin-bottom:18px;
             ">
+
                 TOI: {row['Time on ice']} min |
                 Shifts: {int(row['Numbers of shifts'])} |
                 +/-: {int(row['Plus/Minus'])}
+
             </div>
 
             <div style="
                 display:flex;
-                gap:12px;
                 flex-wrap:wrap;
+                gap:12px;
             ">
 
                 <div style="
                     background:{gf_color};
-                    padding:10px;
+                    width:160px;
+                    padding:12px;
                     border-radius:10px;
-                    width:150px;
                 ">
 
                     <div style="
-                        font-size:12px;
                         color:white;
+                        font-size:12px;
                         font-weight:700;
                     ">
                         GF%
                     </div>
 
                     <div style="
-                        font-size:28px;
-                        font-weight:800;
                         color:white;
+                        font-size:30px;
+                        font-weight:800;
                     ">
                         {row['GF%']}%
                     </div>
@@ -290,23 +323,23 @@ def line_card(row):
 
                 <div style="
                     background:{corsi_color};
-                    padding:10px;
+                    width:160px;
+                    padding:12px;
                     border-radius:10px;
-                    width:150px;
                 ">
 
                     <div style="
-                        font-size:12px;
                         color:white;
+                        font-size:12px;
                         font-weight:700;
                     ">
                         CORSI %
                     </div>
 
                     <div style="
-                        font-size:28px;
-                        font-weight:800;
                         color:white;
+                        font-size:30px;
+                        font-weight:800;
                     ">
                         {row['CORSI %']}%
                     </div>
@@ -315,23 +348,23 @@ def line_card(row):
 
                 <div style="
                     background:{shot_color};
-                    padding:10px;
+                    width:160px;
+                    padding:12px;
                     border-radius:10px;
-                    width:150px;
                 ">
 
                     <div style="
-                        font-size:12px;
                         color:white;
+                        font-size:12px;
                         font-weight:700;
                     ">
                         Shot Share %
                     </div>
 
                     <div style="
-                        font-size:28px;
-                        font-weight:800;
                         color:white;
+                        font-size:30px;
+                        font-weight:800;
                     ">
                         {row['Shot Share %']}%
                     </div>
@@ -340,23 +373,23 @@ def line_card(row):
 
                 <div style="
                     background:#2563EB;
-                    padding:10px;
+                    width:160px;
+                    padding:12px;
                     border-radius:10px;
-                    width:150px;
                 ">
 
                     <div style="
-                        font-size:12px;
                         color:white;
+                        font-size:12px;
                         font-weight:700;
                     ">
                         Goals/60
                     </div>
 
                     <div style="
-                        font-size:28px;
-                        font-weight:800;
                         color:white;
+                        font-size:30px;
+                        font-weight:800;
                     ">
                         {row['Goals/60']}
                     </div>
@@ -365,23 +398,23 @@ def line_card(row):
 
                 <div style="
                     background:#7C3AED;
-                    padding:10px;
+                    width:160px;
+                    padding:12px;
                     border-radius:10px;
-                    width:150px;
                 ">
 
                     <div style="
-                        font-size:12px;
                         color:white;
+                        font-size:12px;
                         font-weight:700;
                     ">
                         Shots/60
                     </div>
 
                     <div style="
-                        font-size:28px;
-                        font-weight:800;
                         color:white;
+                        font-size:30px;
+                        font-weight:800;
                     ">
                         {row['Shots/60']}
                     </div>
@@ -398,7 +431,7 @@ def line_card(row):
     )
 
 # ==================================================
-# TOP LINES
+# BEST LINE COMBINATIONS
 # ==================================================
 
 st.subheader("🔥 Best Line Combinations")
