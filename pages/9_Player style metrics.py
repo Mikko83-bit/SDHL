@@ -207,10 +207,33 @@ def percentile_color(value):
         return "#E03131"
 
 # ==================================================
+# LEAGUE RANK FUNCTION
+# ==================================================
+
+def get_rank(column_name):
+
+    rank_df = filtered_df[
+        ["Player", column_name]
+    ].copy()
+
+    rank_df = rank_df.sort_values(
+        by=column_name,
+        ascending=False
+    ).reset_index(drop=True)
+
+    rank_df["Rank"] = rank_df.index + 1
+
+    player_rank = rank_df[
+        rank_df["Player"] == selected_player
+    ]["Rank"].iloc[0]
+
+    return int(player_rank)
+
+# ==================================================
 # METRIC BOX
 # ==================================================
 
-def metric_box(title, value, percentile):
+def metric_box(title, value, percentile, rank):
 
     if pd.isna(value):
         value = 0
@@ -225,7 +248,7 @@ def metric_box(title, value, percentile):
         background:{color};
         padding:8px;
         border-radius:8px;
-        height:95px;
+        height:120px;
         font-family:Arial;
         color:white;
         display:flex;
@@ -255,12 +278,20 @@ def metric_box(title, value, percentile):
             {round(percentile)}th percentile
         </div>
 
+        <div style="
+            font-size:11px;
+            margin-top:2px;
+            font-weight:700;
+        ">
+            #{rank} among {selected_position}s
+        </div>
+
     </div>
     """
 
     components.html(
         html,
-        height=105
+        height=130
     )
 
 # ==================================================
@@ -276,7 +307,8 @@ with s1:
     metric_box(
         "Goals/60",
         p["Goals/60"],
-        p["Goals/60 Percentile"]
+        p["Goals/60 Percentile"],
+        get_rank("Goals/60")
     )
 
 with s2:
@@ -284,7 +316,8 @@ with s2:
     metric_box(
         "Shots/60",
         p["Shots/60"],
-        p["Shots/60 Percentile"]
+        p["Shots/60 Percentile"],
+        get_rank("Shots/60")
     )
 
 with s3:
@@ -292,7 +325,8 @@ with s3:
     metric_box(
         "xG/60",
         p["xG (Expected goals)/60"],
-        p["xG (Expected goals)/60 Percentile"]
+        p["xG (Expected goals)/60 Percentile"],
+        get_rank("xG (Expected goals)/60")
     )
 
 with s4:
@@ -300,7 +334,8 @@ with s4:
     metric_box(
         "Inner Slot Shots/60",
         p["Inner slot shots - total/60"],
-        p["Inner slot shots - total/60 Percentile"]
+        p["Inner slot shots - total/60 Percentile"],
+        get_rank("Inner slot shots - total/60")
     )
 
 with s5:
@@ -308,7 +343,8 @@ with s5:
     metric_box(
         "Scoring Chances/60",
         p["Scoring chances - total/60"],
-        p["Scoring chances - total/60 Percentile"]
+        p["Scoring chances - total/60 Percentile"],
+        get_rank("Scoring chances - total/60")
     )
 
 # ==================================================
@@ -326,7 +362,8 @@ with p1:
     metric_box(
         "Pre-Shot Passes/60",
         p["Pre-shots passes/60"],
-        p["Pre-shots passes/60 Percentile"]
+        p["Pre-shots passes/60 Percentile"],
+        get_rank("Pre-shots passes/60")
     )
 
 with p2:
@@ -334,7 +371,8 @@ with p2:
     metric_box(
         "Slot Passes/60",
         p["Passes to the slot/60"],
-        p["Passes to the slot/60 Percentile"]
+        p["Passes to the slot/60 Percentile"],
+        get_rank("Passes to the slot/60")
     )
 
 with p3:
@@ -342,7 +380,8 @@ with p3:
     metric_box(
         "First Assists/60",
         p["First assist/60"],
-        p["First assist/60 Percentile"]
+        p["First assist/60 Percentile"],
+        get_rank("First assist/60")
     )
 
 # ==================================================
@@ -360,7 +399,8 @@ with t1:
     metric_box(
         "Entries Carry/60",
         p["Entries via stickhandling/60"],
-        p["Entries via stickhandling/60 Percentile"]
+        p["Entries via stickhandling/60 Percentile"],
+        get_rank("Entries via stickhandling/60")
     )
 
 with t2:
@@ -368,7 +408,8 @@ with t2:
     metric_box(
         "Entries Pass/60",
         p["Entries via pass/60"],
-        p["Entries via pass/60 Percentile"]
+        p["Entries via pass/60 Percentile"],
+        get_rank("Entries via pass/60")
     )
 
 with t3:
@@ -376,7 +417,8 @@ with t3:
     metric_box(
         "Breakouts Carry/60",
         p["Breakouts via stickhandling/60"],
-        p["Breakouts via stickhandling/60 Percentile"]
+        p["Breakouts via stickhandling/60 Percentile"],
+        get_rank("Breakouts via stickhandling/60")
     )
 
 with t4:
@@ -384,7 +426,8 @@ with t4:
     metric_box(
         "Breakouts Pass/60",
         p["Breakouts via pass/60"],
-        p["Breakouts via pass/60 Percentile"]
+        p["Breakouts via pass/60 Percentile"],
+        get_rank("Breakouts via pass/60")
     )
 
 with t5:
@@ -392,7 +435,8 @@ with t5:
     metric_box(
         "Breakouts/60",
         p["Breakouts/60"],
-        p["Breakouts/60 Percentile"]
+        p["Breakouts/60 Percentile"],
+        get_rank("Breakouts/60")
     )
 
 # ==================================================
@@ -410,7 +454,8 @@ with o1:
     metric_box(
         "Puck Touches/60",
         p["Puck touches/60"],
-        p["Puck touches/60 Percentile"]
+        p["Puck touches/60 Percentile"],
+        get_rank("Puck touches/60")
     )
 
 with o2:
@@ -418,7 +463,8 @@ with o2:
     metric_box(
         "OZ Possession/60",
         p["OZ possession/60"],
-        p["OZ possession/60 Percentile"]
+        p["OZ possession/60 Percentile"],
+        get_rank("OZ possession/60")
     )
 
 # ==================================================
@@ -436,7 +482,8 @@ with d1:
     metric_box(
         "Takeaways/60",
         p["Takeaways/60"],
-        p["Takeaways/60 Percentile"]
+        p["Takeaways/60 Percentile"],
+        get_rank("Takeaways/60")
     )
 
 with d2:
@@ -444,7 +491,8 @@ with d2:
     metric_box(
         "DZ Takeaways",
         p["Takeaways in DZ"],
-        p["Takeaways in DZ Percentile"]
+        p["Takeaways in DZ Percentile"],
+        get_rank("Takeaways in DZ")
     )
 
 with d3:
@@ -452,7 +500,8 @@ with d3:
     metric_box(
         "Opponent xG",
         p["Opponent's xG when on ice"],
-        p["Opponent's xG when on ice Percentile"]
+        p["Opponent's xG when on ice Percentile"],
+        get_rank("Opponent's xG when on ice")
     )
 
 # ==================================================
@@ -470,7 +519,8 @@ with i1:
     metric_box(
         "Net xG",
         p["Net xG (xG player on - opp. team's xG)"],
-        p["Net xG (xG player on - opp. team's xG) Percentile"]
+        p["Net xG (xG player on - opp. team's xG) Percentile"],
+        get_rank("Net xG (xG player on - opp. team's xG)")
     )
 
 with i2:
@@ -478,7 +528,8 @@ with i2:
     metric_box(
         "Team xG On-Ice",
         p["Team xG when on ice"],
-        p["Team xG when on ice Percentile"]
+        p["Team xG when on ice Percentile"],
+        get_rank("Team xG when on ice")
     )
 
 with i3:
@@ -486,5 +537,6 @@ with i3:
     metric_box(
         "Overall Score",
         p["Overall Score"],
-        p["Overall Score Percentile"]
+        p["Overall Score Percentile"],
+        get_rank("Overall Score")
     )
