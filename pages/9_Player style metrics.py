@@ -428,7 +428,7 @@ st.markdown("---")
 
 st.subheader("🛡️ Defense")
 
-d1, d2, d3, d4 = st.columns(4)
+d1, d2, d3 = st.columns(3)
 
 with d1:
 
@@ -452,14 +452,6 @@ with d3:
         "Opponent xG",
         p["Opponent's xG when on ice"],
         p["Opponent's xG when on ice Percentile"]
-    )
-
-with d4:
-
-    metric_box(
-        "Puck Losses/60",
-        p["Puck losses/60"],
-        100 - p["Puck losses/60 Percentile"]
     )
 
 # ==================================================
