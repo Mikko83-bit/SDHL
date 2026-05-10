@@ -7,11 +7,11 @@ import streamlit.components.v1 as components
 # ==================================================
 
 st.set_page_config(
-    page_title="Player Style Metrics",
+    page_title="Player Style Comparison",
     layout="wide"
 )
 
-st.title("📊 Player Style Profile")
+st.title("⚔️ Player Style Comparison")
 
 # ==================================================
 # TEAM LOGOS
@@ -63,10 +63,8 @@ df["Team"] = (
 # ==================================================
 
 df["OZ possession/60"] = (
-
     df["OZ possession"] /
     df["Time on ice"]
-
 ) * 60
 
 # ==================================================
@@ -80,7 +78,7 @@ numeric_cols = df.select_dtypes(
 df[numeric_cols] = df[numeric_cols].round(2)
 
 # ==================================================
-# SIDEBAR FILTERS
+# SIDEBAR
 # ==================================================
 
 st.sidebar.header("Filters")
@@ -100,199 +98,245 @@ filtered_df = df[
     df["Position"] == selected_position
 ]
 
-# TEAM
+# TEAM 1
 
 teams = sorted(
     filtered_df["Team"].dropna().unique()
 )
 
-selected_team = st.sidebar.selectbox(
-    "Team",
+team1 = st.sidebar.selectbox(
+    "Team 1",
     teams
 )
 
-# PLAYER
+team2 = st.sidebar.selectbox(
+    "Team 2",
+    teams,
+    index=min(1, len(teams)-1)
+)
 
-players = sorted(
+# PLAYER 1
+
+players1 = sorted(
     filtered_df[
-        filtered_df["Team"] == selected_team
+        filtered_df["Team"] == team1
     ]["Player"].dropna().unique()
 )
 
-selected_player = st.sidebar.selectbox(
-    "Player",
-    players
+player1 = st.sidebar.selectbox(
+    "Player 1",
+    players1
+)
+
+# PLAYER 2
+
+players2 = sorted(
+    filtered_df[
+        filtered_df["Team"] == team2
+    ]["Player"].dropna().unique()
+)
+
+player2 = st.sidebar.selectbox(
+    "Player 2",
+    players2
 )
 
 # ==================================================
-# PLAYER ROW
+# PLAYER ROWS
 # ==================================================
 
-p = filtered_df[
-    filtered_df["Player"] == selected_player
+p1 = filtered_df[
+    filtered_df["Player"] == player1
+].iloc[0]
+
+p2 = filtered_df[
+    filtered_df["Player"] == player2
 ].iloc[0]
 
 # ==================================================
 # HEADER
 # ==================================================
 
-header1, header2 = st.columns([1,4])
+h1, h2, h3 = st.columns([5,1,5])
 
-with header1:
+with h1:
 
-    if p["Team"] in team_logos:
+    if p1["Team"] in team_logos:
 
         st.image(
-            team_logos[p["Team"]],
+            team_logos[p1["Team"]],
             width=90
         )
 
-with header2:
+    st.markdown(f"## {player1}")
+    st.markdown(f"### {p1['Team']} | {p1['Position']}")
+
+    toi_game = p1["Time on ice"] / p1["Games played"]
 
     st.markdown(
-        f"## {selected_player}"
+        f"""
+        TOI/Game: {round(toi_game,1)} min  
+        Points: {int(p1['Points'])}
+        """
     )
+
+with h2:
+
+    st.markdown("## VS")
+
+with h3:
+
+    if p2["Team"] in team_logos:
+
+        st.image(
+            team_logos[p2["Team"]],
+            width=90
+        )
+
+    st.markdown(f"## {player2}")
+    st.markdown(f"### {p2['Team']} | {p2['Position']}")
+
+    toi_game = p2["Time on ice"] / p2["Games played"]
 
     st.markdown(
-        f"### {p['Team']} | {p['Position']}"
+        f"""
+        TOI/Game: {round(toi_game,1)} min  
+        Points: {int(p2['Points'])}
+        """
     )
-
-    info1, info2, info3 = st.columns(3)
-
-    with info1:
-
-        st.metric(
-            "TOI",
-            round(p["Time on ice"],1)
-        )
-
-    with info2:
-
-        st.metric(
-            "Games",
-            int(p["Games played"])
-        )
-
-    with info3:
-
-        st.metric(
-            "Points",
-            int(p["Points"])
-        )
 
 st.markdown("---")
 
 # ==================================================
-# COLOR FUNCTION
+# COLOR FUNCTIONS
 # ==================================================
 
-def percentile_color(value):
+def left_color(a, b):
 
-    if value >= 90:
-        return "#0B5ED7"
+    if a > b:
+        return "#1E8E3E"
 
-    elif value >= 75:
-        return "#3D8BFD"
-
-    elif value >= 60:
-        return "#74A7FF"
-
-    elif value >= 40:
-        return "#AFC8FF"
-
-    elif value >= 25:
-        return "#FFB3B3"
+    elif a < b:
+        return "#C62828"
 
     else:
-        return "#E03131"
+        return "#4B5563"
+
+def right_color(a, b):
+
+    if b > a:
+        return "#1E8E3E"
+
+    elif b < a:
+        return "#C62828"
+
+    else:
+        return "#4B5563"
 
 # ==================================================
-# LEAGUE RANK FUNCTION
+# COMPARISON BOX
 # ==================================================
 
-def get_rank(column_name):
+def comparison_box(
+    title,
+    val1,
+    val2,
+    pct1,
+    pct2
+):
 
-    rank_df = filtered_df[
-        ["Player", column_name]
-    ].copy()
+    color1 = left_color(pct1, pct2)
+    color2 = right_color(pct1, pct2)
 
-    rank_df = rank_df.sort_values(
-        by=column_name,
-        ascending=False
-    ).reset_index(drop=True)
+    c1, c2, c3 = st.columns([4,2,4])
 
-    rank_df["Rank"] = rank_df.index + 1
+    with c1:
 
-    player_rank = rank_df[
-        rank_df["Player"] == selected_player
-    ]["Rank"].iloc[0]
-
-    return int(player_rank)
-
-# ==================================================
-# METRIC BOX
-# ==================================================
-
-def metric_box(title, value, percentile, rank):
-
-    if pd.isna(value):
-        value = 0
-
-    if pd.isna(percentile):
-        percentile = 0
-
-    color = percentile_color(percentile)
-
-    html = f"""
-    <div style="
-        background:{color};
-        padding:8px;
-        border-radius:8px;
-        height:120px;
-        font-family:Arial;
-        color:white;
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-    ">
-
+        html1 = f"""
         <div style="
-            font-size:11px;
-            font-weight:700;
+            background:{color1};
+            padding:10px;
+            border-radius:8px;
+            height:105px;
+            color:white;
+            font-family:Arial;
         ">
-            {title}
-        </div>
 
+            <div style="
+                font-size:12px;
+                font-weight:700;
+            ">
+                {title}
+            </div>
+
+            <div style="
+                font-size:28px;
+                font-weight:800;
+                margin-top:6px;
+            ">
+                {round(val1,2)}
+            </div>
+
+            <div style="
+                font-size:12px;
+                margin-top:4px;
+            ">
+                {round(pct1)}th percentile
+            </div>
+
+        </div>
+        """
+
+        components.html(
+            html1,
+            height=115
+        )
+
+    with c2:
+
+        st.markdown("")
+
+    with c3:
+
+        html2 = f"""
         <div style="
-            font-size:24px;
-            font-weight:800;
-            margin-top:4px;
+            background:{color2};
+            padding:10px;
+            border-radius:8px;
+            height:105px;
+            color:white;
+            font-family:Arial;
         ">
-            {round(value,2)}
+
+            <div style="
+                font-size:12px;
+                font-weight:700;
+            ">
+                {title}
+            </div>
+
+            <div style="
+                font-size:28px;
+                font-weight:800;
+                margin-top:6px;
+            ">
+                {round(val2,2)}
+            </div>
+
+            <div style="
+                font-size:12px;
+                margin-top:4px;
+            ">
+                {round(pct2)}th percentile
+            </div>
+
         </div>
+        """
 
-        <div style="
-            font-size:11px;
-            margin-top:4px;
-        ">
-            {round(percentile)}th percentile
-        </div>
-
-        <div style="
-            font-size:11px;
-            margin-top:2px;
-            font-weight:700;
-        ">
-            #{rank} among {selected_position}s
-        </div>
-
-    </div>
-    """
-
-    components.html(
-        html,
-        height=130
-    )
+        components.html(
+            html2,
+            height=115
+        )
 
 # ==================================================
 # SHOOTING
@@ -300,51 +344,42 @@ def metric_box(title, value, percentile, rank):
 
 st.subheader("🔥 Shooting")
 
-s1, s2, s3, s4, s5 = st.columns(5)
+shooting_metrics = [
 
-with s1:
-
-    metric_box(
+    (
         "Goals/60",
-        p["Goals/60"],
-        p["Goals/60 Percentile"],
-        get_rank("Goals/60")
-    )
+        "Goals/60",
+        "Goals/60 Percentile"
+    ),
 
-with s2:
-
-    metric_box(
+    (
         "Shots/60",
-        p["Shots/60"],
-        p["Shots/60 Percentile"],
-        get_rank("Shots/60")
-    )
+        "Shots/60",
+        "Shots/60 Percentile"
+    ),
 
-with s3:
-
-    metric_box(
+    (
         "xG/60",
-        p["xG (Expected goals)/60"],
-        p["xG (Expected goals)/60 Percentile"],
-        get_rank("xG (Expected goals)/60")
-    )
+        "xG (Expected goals)/60",
+        "xG (Expected goals)/60 Percentile"
+    ),
 
-with s4:
-
-    metric_box(
-        "Inner Slot Shots/60",
-        p["Inner slot shots - total/60"],
-        p["Inner slot shots - total/60 Percentile"],
-        get_rank("Inner slot shots - total/60")
-    )
-
-with s5:
-
-    metric_box(
+    (
         "Scoring Chances/60",
-        p["Scoring chances - total/60"],
-        p["Scoring chances - total/60 Percentile"],
-        get_rank("Scoring chances - total/60")
+        "Scoring chances - total/60",
+        "Scoring chances - total/60 Percentile"
+    )
+
+]
+
+for title, stat, pct in shooting_metrics:
+
+    comparison_box(
+        title,
+        p1[stat],
+        p2[stat],
+        p1[pct],
+        p2[pct]
     )
 
 # ==================================================
@@ -352,36 +387,38 @@ with s5:
 # ==================================================
 
 st.markdown("---")
-
 st.subheader("🎯 Playmaking")
 
-p1, p2, p3 = st.columns(3)
+playmaking_metrics = [
 
-with p1:
-
-    metric_box(
+    (
         "Pre-Shot Passes/60",
-        p["Pre-shots passes/60"],
-        p["Pre-shots passes/60 Percentile"],
-        get_rank("Pre-shots passes/60")
-    )
+        "Pre-shots passes/60",
+        "Pre-shots passes/60 Percentile"
+    ),
 
-with p2:
-
-    metric_box(
+    (
         "Slot Passes/60",
-        p["Passes to the slot/60"],
-        p["Passes to the slot/60 Percentile"],
-        get_rank("Passes to the slot/60")
+        "Passes to the slot/60",
+        "Passes to the slot/60 Percentile"
+    ),
+
+    (
+        "First Assists/60",
+        "First assist/60",
+        "First assist/60 Percentile"
     )
 
-with p3:
+]
 
-    metric_box(
-        "First Assists/60",
-        p["First assist/60"],
-        p["First assist/60 Percentile"],
-        get_rank("First assist/60")
+for title, stat, pct in playmaking_metrics:
+
+    comparison_box(
+        title,
+        p1[stat],
+        p2[stat],
+        p1[pct],
+        p2[pct]
     )
 
 # ==================================================
@@ -389,54 +426,44 @@ with p3:
 # ==================================================
 
 st.markdown("---")
-
 st.subheader("🚀 Transition")
 
-t1, t2, t3, t4, t5 = st.columns(5)
+transition_metrics = [
 
-with t1:
-
-    metric_box(
+    (
         "Entries Carry/60",
-        p["Entries via stickhandling/60"],
-        p["Entries via stickhandling/60 Percentile"],
-        get_rank("Entries via stickhandling/60")
-    )
+        "Entries via stickhandling/60",
+        "Entries via stickhandling/60 Percentile"
+    ),
 
-with t2:
-
-    metric_box(
+    (
         "Entries Pass/60",
-        p["Entries via pass/60"],
-        p["Entries via pass/60 Percentile"],
-        get_rank("Entries via pass/60")
-    )
+        "Entries via pass/60",
+        "Entries via pass/60 Percentile"
+    ),
 
-with t3:
-
-    metric_box(
+    (
         "Breakouts Carry/60",
-        p["Breakouts via stickhandling/60"],
-        p["Breakouts via stickhandling/60 Percentile"],
-        get_rank("Breakouts via stickhandling/60")
-    )
+        "Breakouts via stickhandling/60",
+        "Breakouts via stickhandling/60 Percentile"
+    ),
 
-with t4:
-
-    metric_box(
+    (
         "Breakouts Pass/60",
-        p["Breakouts via pass/60"],
-        p["Breakouts via pass/60 Percentile"],
-        get_rank("Breakouts via pass/60")
+        "Breakouts via pass/60",
+        "Breakouts via pass/60 Percentile"
     )
 
-with t5:
+]
 
-    metric_box(
-        "Breakouts/60",
-        p["Breakouts/60"],
-        p["Breakouts/60 Percentile"],
-        get_rank("Breakouts/60")
+for title, stat, pct in transition_metrics:
+
+    comparison_box(
+        title,
+        p1[stat],
+        p2[stat],
+        p1[pct],
+        p2[pct]
     )
 
 # ==================================================
@@ -444,27 +471,32 @@ with t5:
 # ==================================================
 
 st.markdown("---")
-
 st.subheader("🏒 Possession")
 
-o1, o2 = st.columns(2)
+possession_metrics = [
 
-with o1:
-
-    metric_box(
+    (
         "Puck Touches/60",
-        p["Puck touches/60"],
-        p["Puck touches/60 Percentile"],
-        get_rank("Puck touches/60")
+        "Puck touches/60",
+        "Puck touches/60 Percentile"
+    ),
+
+    (
+        "OZ Possession/60",
+        "OZ possession/60",
+        "OZ possession/60 Percentile"
     )
 
-with o2:
+]
 
-    metric_box(
-        "OZ Possession/60",
-        p["OZ possession/60"],
-        p["OZ possession/60 Percentile"],
-        get_rank("OZ possession/60")
+for title, stat, pct in possession_metrics:
+
+    comparison_box(
+        title,
+        p1[stat],
+        p2[stat],
+        p1[pct],
+        p2[pct]
     )
 
 # ==================================================
@@ -472,36 +504,32 @@ with o2:
 # ==================================================
 
 st.markdown("---")
-
 st.subheader("🛡️ Defense")
 
-d1, d2, d3 = st.columns(3)
+defense_metrics = [
 
-with d1:
-
-    metric_box(
+    (
         "Takeaways/60",
-        p["Takeaways/60"],
-        p["Takeaways/60 Percentile"],
-        get_rank("Takeaways/60")
-    )
+        "Takeaways/60",
+        "Takeaways/60 Percentile"
+    ),
 
-with d2:
-
-    metric_box(
+    (
         "DZ Takeaways",
-        p["Takeaways in DZ"],
-        p["Takeaways in DZ Percentile"],
-        get_rank("Takeaways in DZ")
+        "Takeaways in DZ",
+        "Takeaways in DZ Percentile"
     )
 
-with d3:
+]
 
-    metric_box(
-        "Opponent xG",
-        p["Opponent's xG when on ice"],
-        p["Opponent's xG when on ice Percentile"],
-        get_rank("Opponent's xG when on ice")
+for title, stat, pct in defense_metrics:
+
+    comparison_box(
+        title,
+        p1[stat],
+        p2[stat],
+        p1[pct],
+        p2[pct]
     )
 
 # ==================================================
@@ -509,34 +537,30 @@ with d3:
 # ==================================================
 
 st.markdown("---")
-
 st.subheader("📈 Impact")
 
-i1, i2, i3 = st.columns(3)
+impact_metrics = [
 
-with i1:
-
-    metric_box(
+    (
         "Net xG",
-        p["Net xG (xG player on - opp. team's xG)"],
-        p["Net xG (xG player on - opp. team's xG) Percentile"],
-        get_rank("Net xG (xG player on - opp. team's xG)")
-    )
+        "Net xG (xG player on - opp. team's xG)",
+        "Net xG (xG player on - opp. team's xG) Percentile"
+    ),
 
-with i2:
-
-    metric_box(
-        "Team xG On-Ice",
-        p["Team xG when on ice"],
-        p["Team xG when on ice Percentile"],
-        get_rank("Team xG when on ice")
-    )
-
-with i3:
-
-    metric_box(
+    (
         "Overall Score",
-        p["Overall Score"],
-        p["Overall Score Percentile"],
-        get_rank("Overall Score")
+        "Overall Score",
+        "Overall Score Percentile"
+    )
+
+]
+
+for title, stat, pct in impact_metrics:
+
+    comparison_box(
+        title,
+        p1[stat],
+        p2[stat],
+        p1[pct],
+        p2[pct]
     )
