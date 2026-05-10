@@ -219,47 +219,46 @@ def metric_box(title, value, percentile):
 
     color = percentile_color(percentile)
 
-    st.markdown(
+    html = f"""
+    <div style='
+        background:{color};
+        padding:8px;
+        border-radius:8px;
+        margin-bottom:8px;
+        height:95px;
+    '>
 
-        f"""
-        <div style="
-            background:{color};
-            padding:8px;
-            border-radius:8px;
-            margin-bottom:8px;
-            height:95px;
-        ">
-
-            <div style="
-                font-size:11px;
-                color:white;
-                font-weight:700;
-            ">
-                {title}
-            </div>
-
-            <div style="
-                font-size:24px;
-                color:white;
-                font-weight:800;
-                margin-top:2px;
-            ">
-                {round(value,2)}
-            </div>
-
-            <div style="
-                font-size:11px;
-                color:white;
-                margin-top:2px;
-            ">
-                {round(percentile)}th percentile
-            </div>
-
+        <div style='
+            font-size:11px;
+            color:white;
+            font-weight:700;
+        '>
+            {title}
         </div>
-        """,
 
+        <div style='
+            font-size:24px;
+            color:white;
+            font-weight:800;
+            margin-top:2px;
+        '>
+            {round(value,2)}
+        </div>
+
+        <div style='
+            font-size:11px;
+            color:white;
+            margin-top:2px;
+        '>
+            {round(percentile)}th percentile
+        </div>
+
+    </div>
+    """
+
+    st.markdown(
+        html,
         unsafe_allow_html=True
-
     )
 
 # ==================================================
@@ -487,3 +486,4 @@ with i3:
         p["Overall Score"],
         p["Overall Score Percentile"]
     )
+    
