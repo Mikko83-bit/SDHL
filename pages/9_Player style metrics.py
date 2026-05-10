@@ -208,6 +208,29 @@ with h3:
 st.markdown("---")
 
 # ==================================================
+# RANK FUNCTION
+# ==================================================
+
+def get_rank(player_name, column_name):
+
+    rank_df = filtered_df[
+        ["Player", column_name]
+    ].copy()
+
+    rank_df = rank_df.sort_values(
+        by=column_name,
+        ascending=False
+    ).reset_index(drop=True)
+
+    rank_df["Rank"] = rank_df.index + 1
+
+    player_rank = rank_df[
+        rank_df["Player"] == player_name
+    ]["Rank"].iloc[0]
+
+    return int(player_rank)
+
+# ==================================================
 # COLOR FUNCTIONS
 # ==================================================
 
@@ -239,16 +262,25 @@ def right_color(a, b):
 
 def comparison_box(
     title,
-    val1,
-    val2,
-    pct1,
-    pct2
+    stat,
+    pct,
 ):
+
+    val1 = p1[stat]
+    val2 = p2[stat]
+
+    pct1 = p1[pct]
+    pct2 = p2[pct]
+
+    rank1 = get_rank(player1, stat)
+    rank2 = get_rank(player2, stat)
 
     color1 = left_color(pct1, pct2)
     color2 = right_color(pct1, pct2)
 
-    c1, c2, c3 = st.columns([4,2,4])
+    c1, c2, c3 = st.columns([4,1,4])
+
+    # PLAYER 1
 
     with c1:
 
@@ -257,7 +289,7 @@ def comparison_box(
             background:{color1};
             padding:10px;
             border-radius:8px;
-            height:105px;
+            height:130px;
             color:white;
             font-family:Arial;
         ">
@@ -270,7 +302,7 @@ def comparison_box(
             </div>
 
             <div style="
-                font-size:28px;
+                font-size:30px;
                 font-weight:800;
                 margin-top:6px;
             ">
@@ -279,9 +311,17 @@ def comparison_box(
 
             <div style="
                 font-size:12px;
-                margin-top:4px;
+                margin-top:6px;
             ">
                 {round(pct1)}th percentile
+            </div>
+
+            <div style="
+                font-size:12px;
+                font-weight:700;
+                margin-top:2px;
+            ">
+                #{rank1} among {selected_position}s
             </div>
 
         </div>
@@ -289,12 +329,14 @@ def comparison_box(
 
         components.html(
             html1,
-            height=115
+            height=140
         )
 
     with c2:
 
         st.markdown("")
+
+    # PLAYER 2
 
     with c3:
 
@@ -303,7 +345,7 @@ def comparison_box(
             background:{color2};
             padding:10px;
             border-radius:8px;
-            height:105px;
+            height:130px;
             color:white;
             font-family:Arial;
         ">
@@ -316,7 +358,7 @@ def comparison_box(
             </div>
 
             <div style="
-                font-size:28px;
+                font-size:30px;
                 font-weight:800;
                 margin-top:6px;
             ">
@@ -325,9 +367,17 @@ def comparison_box(
 
             <div style="
                 font-size:12px;
-                margin-top:4px;
+                margin-top:6px;
             ">
                 {round(pct2)}th percentile
+            </div>
+
+            <div style="
+                font-size:12px;
+                font-weight:700;
+                margin-top:2px;
+            ">
+                #{rank2} among {selected_position}s
             </div>
 
         </div>
@@ -335,7 +385,7 @@ def comparison_box(
 
         components.html(
             html2,
-            height=115
+            height=140
         )
 
 # ==================================================
@@ -376,10 +426,8 @@ for title, stat, pct in shooting_metrics:
 
     comparison_box(
         title,
-        p1[stat],
-        p2[stat],
-        p1[pct],
-        p2[pct]
+        stat,
+        pct
     )
 
 # ==================================================
@@ -415,10 +463,8 @@ for title, stat, pct in playmaking_metrics:
 
     comparison_box(
         title,
-        p1[stat],
-        p2[stat],
-        p1[pct],
-        p2[pct]
+        stat,
+        pct
     )
 
 # ==================================================
@@ -460,10 +506,8 @@ for title, stat, pct in transition_metrics:
 
     comparison_box(
         title,
-        p1[stat],
-        p2[stat],
-        p1[pct],
-        p2[pct]
+        stat,
+        pct
     )
 
 # ==================================================
@@ -493,10 +537,8 @@ for title, stat, pct in possession_metrics:
 
     comparison_box(
         title,
-        p1[stat],
-        p2[stat],
-        p1[pct],
-        p2[pct]
+        stat,
+        pct
     )
 
 # ==================================================
@@ -526,10 +568,8 @@ for title, stat, pct in defense_metrics:
 
     comparison_box(
         title,
-        p1[stat],
-        p2[stat],
-        p1[pct],
-        p2[pct]
+        stat,
+        pct
     )
 
 # ==================================================
@@ -559,8 +599,6 @@ for title, stat, pct in impact_metrics:
 
     comparison_box(
         title,
-        p1[stat],
-        p2[stat],
-        p1[pct],
-        p2[pct]
+        stat,
+        pct
     )
