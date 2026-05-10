@@ -54,8 +54,6 @@ for col in numeric_cols:
 # ADVANCED METRICS
 # ==================================================
 
-# GOALS FOR %
-
 df["GF%"] = (
 
     df["Goals"] /
@@ -66,8 +64,6 @@ df["GF%"] = (
     )
 
 ) * 100
-
-# SHOT SHARE %
 
 df["Shot Share %"] = (
 
@@ -80,8 +76,6 @@ df["Shot Share %"] = (
 
 ) * 100
 
-# CORSI %
-
 df["CORSI %"] = (
 
     df["CORSI+"] /
@@ -93,25 +87,12 @@ df["CORSI %"] = (
 
 ) * 100
 
-# GOALS / 60
-
 df["Goals/60"] = (
 
     df["Goals"] /
     df["Time on ice"]
 
 ) * 60
-
-# GOALS AGAINST / 60
-
-df["GA/60"] = (
-
-    df["Opponent's goals"] /
-    df["Time on ice"]
-
-) * 60
-
-# SHOTS / 60
 
 df["Shots/60"] = (
 
@@ -120,8 +101,6 @@ df["Shots/60"] = (
 
 ) * 60
 
-# SHOTS AGAINST / 60
-
 df["Shots Against/60"] = (
 
     df["Opponent shots total"] /
@@ -129,17 +108,8 @@ df["Shots Against/60"] = (
 
 ) * 60
 
-# SHOTS ON GOAL / 60
-
-df["Shots on Goal/60"] = (
-
-    df["Shots on goal"] /
-    df["Time on ice"]
-
-) * 60
-
 # ==================================================
-# ROUND VALUES
+# ROUND
 # ==================================================
 
 numeric_round = df.select_dtypes(
@@ -156,8 +126,6 @@ df[numeric_round] = df[
 
 st.sidebar.header("Filters")
 
-# MINIMUM TOI
-
 min_toi = st.sidebar.slider(
 
     "Minimum TOI",
@@ -171,8 +139,6 @@ min_toi = st.sidebar.slider(
     step=5
 
 )
-
-# MINIMUM SHIFTS
 
 min_shifts = st.sidebar.slider(
 
@@ -188,8 +154,6 @@ min_shifts = st.sidebar.slider(
 
 )
 
-# SORT OPTIONS
-
 sort_options = [
 
     "GF%",
@@ -197,7 +161,6 @@ sort_options = [
     "Shot Share %",
     "Goals/60",
     "Shots/60",
-    "Shots on Goal/60",
     "Plus/Minus",
     "Time on ice"
 
@@ -208,7 +171,9 @@ selected_sort = st.sidebar.selectbox(
     sort_options
 )
 
-# APPLY FILTERS
+# ==================================================
+# FILTER DATA
+# ==================================================
 
 filtered_df = df[
 
@@ -232,7 +197,7 @@ def get_color(value):
         return "#15803D"
 
     elif value >= 52:
-        return "#4ADE80"
+        return "#3B82F6"
 
     elif value >= 48:
         return "#FACC15"
@@ -241,10 +206,12 @@ def get_color(value):
         return "#DC2626"
 
 # ==================================================
-# LINE CARD
+# LINE CARDS
 # ==================================================
 
-def line_card(row):
+st.subheader("🔥 Best Line Combinations")
+
+for _, row in filtered_df.iterrows():
 
     gf_color = get_color(
         row["GF%"]
@@ -258,187 +225,224 @@ def line_card(row):
         row["Shot Share %"]
     )
 
-    st.markdown(
+    col1, col2, col3, col4, col5 = st.columns(5)
 
-        f"""
-        <div style="
-            background:#111827;
-            padding:20px;
-            border-radius:16px;
-            margin-bottom:18px;
-            border:1px solid #2D3748;
-        ">
+    # GF%
 
+    with col1:
+
+        st.markdown(
+            f"""
             <div style="
-                font-size:24px;
-                font-weight:800;
-                color:white;
-                margin-bottom:12px;
-            ">
-                {row['Line']}
-            </div>
-
-            <div style="
-                font-size:14px;
-                color:#CBD5E1;
-                margin-bottom:18px;
-            ">
-
-                TOI: {row['Time on ice']} min |
-                Shifts: {int(row['Numbers of shifts'])} |
-                +/-: {int(row['Plus/Minus'])}
-
-            </div>
-
-            <div style="
-                display:flex;
-                flex-wrap:wrap;
-                gap:12px;
+                background:{gf_color};
+                padding:14px;
+                border-radius:12px;
+                height:140px;
             ">
 
                 <div style="
-                    background:{gf_color};
-                    width:160px;
-                    padding:12px;
-                    border-radius:10px;
+                    font-size:18px;
+                    font-weight:800;
+                    color:white;
+                    margin-bottom:10px;
                 ">
-
-                    <div style="
-                        color:white;
-                        font-size:12px;
-                        font-weight:700;
-                    ">
-                        GF%
-                    </div>
-
-                    <div style="
-                        color:white;
-                        font-size:30px;
-                        font-weight:800;
-                    ">
-                        {row['GF%']}%
-                    </div>
-
+                    GF%
                 </div>
 
                 <div style="
-                    background:{corsi_color};
-                    width:160px;
-                    padding:12px;
-                    border-radius:10px;
+                    font-size:36px;
+                    font-weight:900;
+                    color:white;
                 ">
-
-                    <div style="
-                        color:white;
-                        font-size:12px;
-                        font-weight:700;
-                    ">
-                        CORSI %
-                    </div>
-
-                    <div style="
-                        color:white;
-                        font-size:30px;
-                        font-weight:800;
-                    ">
-                        {row['CORSI %']}%
-                    </div>
-
+                    {row['GF%']}%
                 </div>
 
                 <div style="
-                    background:{shot_color};
-                    width:160px;
-                    padding:12px;
-                    border-radius:10px;
+                    font-size:13px;
+                    color:white;
+                    margin-top:8px;
                 ">
-
-                    <div style="
-                        color:white;
-                        font-size:12px;
-                        font-weight:700;
-                    ">
-                        Shot Share %
-                    </div>
-
-                    <div style="
-                        color:white;
-                        font-size:30px;
-                        font-weight:800;
-                    ">
-                        {row['Shot Share %']}%
-                    </div>
-
-                </div>
-
-                <div style="
-                    background:#2563EB;
-                    width:160px;
-                    padding:12px;
-                    border-radius:10px;
-                ">
-
-                    <div style="
-                        color:white;
-                        font-size:12px;
-                        font-weight:700;
-                    ">
-                        Goals/60
-                    </div>
-
-                    <div style="
-                        color:white;
-                        font-size:30px;
-                        font-weight:800;
-                    ">
-                        {row['Goals/60']}
-                    </div>
-
-                </div>
-
-                <div style="
-                    background:#7C3AED;
-                    width:160px;
-                    padding:12px;
-                    border-radius:10px;
-                ">
-
-                    <div style="
-                        color:white;
-                        font-size:12px;
-                        font-weight:700;
-                    ">
-                        Shots/60
-                    </div>
-
-                    <div style="
-                        color:white;
-                        font-size:30px;
-                        font-weight:800;
-                    ">
-                        {row['Shots/60']}
-                    </div>
-
+                    {row['Line']}
                 </div>
 
             </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        </div>
-        """,
+    # CORSI
 
-        unsafe_allow_html=True
+    with col2:
 
-    )
+        st.markdown(
+            f"""
+            <div style="
+                background:{corsi_color};
+                padding:14px;
+                border-radius:12px;
+                height:140px;
+            ">
 
-# ==================================================
-# BEST LINE COMBINATIONS
-# ==================================================
+                <div style="
+                    font-size:18px;
+                    font-weight:800;
+                    color:white;
+                    margin-bottom:10px;
+                ">
+                    CORSI %
+                </div>
 
-st.subheader("🔥 Best Line Combinations")
+                <div style="
+                    font-size:36px;
+                    font-weight:900;
+                    color:white;
+                ">
+                    {row['CORSI %']}%
+                </div>
 
-for _, row in filtered_df.iterrows():
+                <div style="
+                    font-size:13px;
+                    color:white;
+                    margin-top:8px;
+                ">
+                    TOI: {row['Time on ice']} min
+                </div>
 
-    line_card(row)
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # SHOT SHARE
+
+    with col3:
+
+        st.markdown(
+            f"""
+            <div style="
+                background:{shot_color};
+                padding:14px;
+                border-radius:12px;
+                height:140px;
+            ">
+
+                <div style="
+                    font-size:18px;
+                    font-weight:800;
+                    color:white;
+                    margin-bottom:10px;
+                ">
+                    Shot Share %
+                </div>
+
+                <div style="
+                    font-size:36px;
+                    font-weight:900;
+                    color:white;
+                ">
+                    {row['Shot Share %']}%
+                </div>
+
+                <div style="
+                    font-size:13px;
+                    color:white;
+                    margin-top:8px;
+                ">
+                    +/-: {row['Plus/Minus']}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # GOALS / 60
+
+    with col4:
+
+        st.markdown(
+            f"""
+            <div style="
+                background:#2563EB;
+                padding:14px;
+                border-radius:12px;
+                height:140px;
+            ">
+
+                <div style="
+                    font-size:18px;
+                    font-weight:800;
+                    color:white;
+                    margin-bottom:10px;
+                ">
+                    Goals/60
+                </div>
+
+                <div style="
+                    font-size:36px;
+                    font-weight:900;
+                    color:white;
+                ">
+                    {row['Goals/60']}
+                </div>
+
+                <div style="
+                    font-size:13px;
+                    color:white;
+                    margin-top:8px;
+                ">
+                    Goals: {row['Goals']}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # SHOTS / 60
+
+    with col5:
+
+        st.markdown(
+            f"""
+            <div style="
+                background:#7C3AED;
+                padding:14px;
+                border-radius:12px;
+                height:140px;
+            ">
+
+                <div style="
+                    font-size:18px;
+                    font-weight:800;
+                    color:white;
+                    margin-bottom:10px;
+                ">
+                    Shots/60
+                </div>
+
+                <div style="
+                    font-size:36px;
+                    font-weight:900;
+                    color:white;
+                ">
+                    {row['Shots/60']}
+                </div>
+
+                <div style="
+                    font-size:13px;
+                    color:white;
+                    margin-top:8px;
+                ">
+                    Shifts: {int(row['Numbers of shifts'])}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("")
 
 # ==================================================
 # RAW DATA
