@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 # ==================================================
 # PAGE CONFIG
@@ -10,10 +11,9 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("⚡ Linetool")
-
+st.title("⚡ WOWY Tool")
 st.markdown(
-    "Modern 5v5 line chemistry and lineup impact dashboard."
+    "With Or Without You analysis for 5v5 line chemistry."
 )
 
 # ==================================================
@@ -38,10 +38,7 @@ numeric_cols = [
     "Goals",
     "Opponent's goals",
     "Shots",
-    "Shots on goal",
     "Opponent shots total",
-    "Shots on goal against",
-    "CORSI",
     "CORSI+",
     "CORSI-"
 
@@ -58,8 +55,6 @@ for col in numeric_cols:
 # ADVANCED METRICS
 # ==================================================
 
-# GF%
-
 df["GF%"] = (
 
     df["Goals"] /
@@ -70,21 +65,6 @@ df["GF%"] = (
     )
 
 ) * 100
-
-# SHOT SHARE %
-
-df["Shot Share %"] = (
-
-    df["Shots"] /
-
-    (
-        df["Shots"] +
-        df["Opponent shots total"]
-    )
-
-) * 100
-
-# CORSI %
 
 df["CORSI %"] = (
 
@@ -97,16 +77,12 @@ df["CORSI %"] = (
 
 ) * 100
 
-# GOALS/60
-
 df["Goals/60"] = (
 
     df["Goals"] /
     df["Time on ice"]
 
 ) * 60
-
-# GA/60
 
 df["GA/60"] = (
 
@@ -115,8 +91,6 @@ df["GA/60"] = (
 
 ) * 60
 
-# SHOTS/60
-
 df["Shots/60"] = (
 
     df["Shots"] /
@@ -124,43 +98,64 @@ df["Shots/60"] = (
 
 ) * 60
 
-# SHOTS AGAINST/60
-
-df["Shots Against/60"] = (
-
-    df["Opponent shots total"] /
-    df["Time on ice"]
-
-) * 60
-
-# NET GOALS
-
-df["Goal Differential"] = (
-
-    df["Goals"] -
-    df["Opponent's goals"]
-
-)
-
 # ==================================================
 # ROUND
 # ==================================================
 
-numeric_round = df.select_dtypes(
+num_cols = df.select_dtypes(
     include="number"
 ).columns
 
-df[numeric_round] = df[
-    numeric_round
-].round(2)
+df[num_cols] = df[num_cols].round(2)
+
+# ==================================================
+# PARSE PLAYERS
+# ==================================================
+
+df["Players"] = df["Line"].apply(
+
+    lambda x: [
+
+        p.strip()
+
+        for p in str(x).split(",")
+
+    ]
+
+)
+
+# ==================================================
+# ALL PLAYERS
+# ==================================================
+
+all_players = sorted(
+
+    list(
+
+        set(
+
+            player
+
+            for sublist in df["Players"]
+
+            for player in sublist
+
+        )
+
+    )
+
+)
 
 # ==================================================
 # SIDEBAR
 # ==================================================
 
-st.sidebar.header("Filters")
+st.sidebar.header("WOWY Filters")
 
-# TOI FILTER
+selected_player = st.sidebar.selectbox(
+    "Select Player",
+    all_players
+)
 
 min_toi = st.sidebar.slider(
 
@@ -170,220 +165,309 @@ min_toi = st.sidebar.slider(
 
     max_value=int(df["Time on ice"].max()),
 
-    value=50,
+    value=30,
 
     step=5
 
 )
 
-# SHIFTS FILTER
+# ==================================================
+# FILTER TOI
+# ==================================================
 
-min_shifts = st.sidebar.slider(
+df = df[
+    df["Time on ice"] >= min_toi
+]
 
-    "Minimum Shifts",
+# ==================================================
+# WITH PLAYER
+# ==================================================
 
-    min_value=0,
+with_player = df[
 
-    max_value=int(df["Numbers of shifts"].max()),
+    df["Players"].apply(
 
-    value=100,
+        lambda x:
 
-    step=10
+        selected_player in x
 
-)
-
-# SEARCH PLAYER
-
-search_player = st.sidebar.text_input(
-    "Search Player"
-)
-
-# SORT OPTION
-
-sort_options = [
-
-    "GF%",
-    "CORSI %",
-    "Shot Share %",
-    "Goals/60",
-    "Shots/60",
-    "Goal Differential",
-    "Plus/Minus",
-    "Time on ice"
+    )
 
 ]
 
-selected_sort = st.sidebar.selectbox(
-    "Sort By",
-    sort_options
-)
-
 # ==================================================
-# APPLY FILTERS
+# WITHOUT PLAYER
 # ==================================================
 
-filtered_df = df[
+without_player = df[
 
-    (df["Time on ice"] >= min_toi) &
-    (df["Numbers of shifts"] >= min_shifts)
+    ~df["Players"].apply(
+
+        lambda x:
+
+        selected_player in x
+
+    )
 
 ]
 
-# PLAYER SEARCH
+# ==================================================
+# PLAYER SUMMARY
+# ==================================================
 
-if search_player:
+st.subheader(f"🏒 {selected_player}")
 
-    filtered_df = filtered_df[
+summary1, summary2, summary3, summary4 = st.columns(4)
 
-        filtered_df["Line"]
-        .str.contains(
-            search_player,
-            case=False,
-            na=False
+with summary1:
+
+    st.metric(
+        "Lines Played",
+        len(with_player)
+    )
+
+with summary2:
+
+    st.metric(
+        "TOI",
+        round(
+            with_player["Time on ice"].sum(),
+            1
         )
+    )
 
-    ]
+with summary3:
 
-# SORT
-
-filtered_df = filtered_df.sort_values(
-    by=selected_sort,
-    ascending=False
-)
-
-# ==================================================
-# DISPLAY TABLE
-# ==================================================
-
-display_cols = [
-
-    "Line",
-    "Time on ice",
-    "Numbers of shifts",
-    "Goals",
-    "Opponent's goals",
-    "Goal Differential",
-    "GF%",
-    "CORSI %",
-    "Shot Share %",
-    "Goals/60",
-    "GA/60",
-    "Shots/60",
-    "Shots Against/60",
-    "Plus/Minus"
-
-]
-
-table_df = filtered_df[
-    display_cols
-].copy()
-
-# ==================================================
-# STYLE FUNCTION
-# ==================================================
-
-def color_scale(val):
-
-    if pd.isna(val):
-        return ""
-
-    # ELITE
-
-    if val >= 60:
-        return "background-color: #15803D; color: white"
-
-    # GOOD
-
-    elif val >= 52:
-        return "background-color: #2563EB; color: white"
-
-    # AVERAGE
-
-    elif val >= 48:
-        return "background-color: #CA8A04; color: white"
-
-    # BAD
-
-    else:
-        return "background-color: #DC2626; color: white"
-
-# ==================================================
-# STYLED TABLE
-# ==================================================
-
-styled_table = table_df.style.map(
-
-    color_scale,
-
-    subset=[
-
+    st.metric(
         "GF%",
+        round(
+            with_player["GF%"].mean(),
+            1
+        )
+    )
+
+with summary4:
+
+    st.metric(
         "CORSI %",
-        "Shot Share %"
-
-    ]
-
-)
-
-# ==================================================
-# TOP STATS
-# ==================================================
-
-top1, top2, top3, top4 = st.columns(4)
-
-with top1:
-
-    st.metric(
-        "Lines",
-        len(filtered_df)
-    )
-
-with top2:
-
-    st.metric(
-        "Best GF%",
-        round(filtered_df["GF%"].max(),1)
-    )
-
-with top3:
-
-    st.metric(
-        "Best CORSI %",
-        round(filtered_df["CORSI %"].max(),1)
-    )
-
-with top4:
-
-    st.metric(
-        "Highest TOI",
-        round(filtered_df["Time on ice"].max(),1)
+        round(
+            with_player["CORSI %"].mean(),
+            1
+        )
     )
 
 st.markdown("---")
 
 # ==================================================
-# MAIN TABLE
+# TEAMMATE CHEMISTRY
 # ==================================================
 
-st.subheader("🔥 Line Combination Rankings")
+teammate_results = []
+
+for teammate in all_players:
+
+    if teammate == selected_player:
+        continue
+
+    pair_df = with_player[
+
+        with_player["Players"].apply(
+
+            lambda x:
+
+            teammate in x
+
+        )
+
+    ]
+
+    if len(pair_df) == 0:
+        continue
+
+    toi = pair_df["Time on ice"].sum()
+
+    gf = pair_df["GF%"].mean()
+
+    corsi = pair_df["CORSI %"].mean()
+
+    goals60 = pair_df["Goals/60"].mean()
+
+    chemistry_score = (
+
+        gf * 0.4 +
+
+        corsi * 0.4 +
+
+        goals60 * 5 +
+
+        min(toi, 200) * 0.05
+
+    )
+
+    teammate_results.append({
+
+        "Teammate": teammate,
+        "TOI": round(toi,1),
+        "GF%": round(gf,1),
+        "CORSI %": round(corsi,1),
+        "Goals/60": round(goals60,2),
+        "Chemistry Score": round(chemistry_score,1)
+
+    })
+
+chem_df = pd.DataFrame(
+    teammate_results
+)
+
+if not chem_df.empty:
+
+    chem_df = chem_df.sort_values(
+        by="Chemistry Score",
+        ascending=False
+    )
+
+# ==================================================
+# BEST TEAMMATES
+# ==================================================
+
+st.subheader("🔥 Best Teammates")
 
 st.dataframe(
 
-    styled_table,
+    chem_df,
 
     use_container_width=True,
 
-    height=900
+    height=450
 
 )
 
 # ==================================================
-# RAW DATA
+# WITH VS WITHOUT
 # ==================================================
 
-with st.expander("View Full Raw Data"):
+st.markdown("---")
 
-    st.dataframe(
-        filtered_df,
-        use_container_width=True
-    )
+st.subheader("📊 With vs Without")
+
+with_metrics = {
+
+    "GF%":
+
+        round(
+            with_player["GF%"].mean(),
+            1
+        ),
+
+    "CORSI %":
+
+        round(
+            with_player["CORSI %"].mean(),
+            1
+        ),
+
+    "Goals/60":
+
+        round(
+            with_player["Goals/60"].mean(),
+            2
+        ),
+
+    "Shots/60":
+
+        round(
+            with_player["Shots/60"].mean(),
+            2
+        )
+
+}
+
+without_metrics = {
+
+    "GF%":
+
+        round(
+            without_player["GF%"].mean(),
+            1
+        ),
+
+    "CORSI %":
+
+        round(
+            without_player["CORSI %"].mean(),
+            1
+        ),
+
+    "Goals/60":
+
+        round(
+            without_player["Goals/60"].mean(),
+            2
+        ),
+
+    "Shots/60":
+
+        round(
+            without_player["Shots/60"].mean(),
+            2
+        )
+
+}
+
+compare_df = pd.DataFrame({
+
+    "Metric": list(with_metrics.keys()),
+
+    "WITH Player": list(with_metrics.values()),
+
+    "WITHOUT Player": list(without_metrics.values())
+
+})
+
+st.dataframe(
+
+    compare_df,
+
+    use_container_width=True
+
+)
+
+# ==================================================
+# MOST USED LINES
+# ==================================================
+
+st.markdown("---")
+
+st.subheader("⏱ Most Used Lines")
+
+top_lines = with_player.sort_values(
+
+    by="Time on ice",
+
+    ascending=False
+
+)[
+
+    [
+
+        "Line",
+        "Time on ice",
+        "Goals",
+        "Opponent's goals",
+        "GF%",
+        "CORSI %",
+        "Goals/60"
+
+    ]
+
+]
+
+st.dataframe(
+
+    top_lines,
+
+    use_container_width=True,
+
+    height=350
+
+)
