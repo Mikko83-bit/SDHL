@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
 # ==================================================
 # PAGE CONFIG
@@ -14,7 +15,11 @@ st.set_page_config(
 # TITLE
 # ==================================================
 
-st.title("🥅 Goalie Comparison")
+st.title("🥅 xGSA Dashboard")
+
+st.markdown(
+    "Advanced SDHL goalie analytics dashboard"
+)
 
 # ==================================================
 # LOAD DATA
@@ -99,7 +104,8 @@ numeric_cols = [
     "Shots on goal",
     "Saves",
     "xG conceded",
-    "xG per shot taken"
+    "xG per shot taken",
+    "Age"
 
 ]
 
@@ -188,28 +194,211 @@ min_games = st.sidebar.slider(
 
 )
 
-filtered_df = df[
-    df["Games played"] >= min_games
+teams = sorted(
+    df["Team"].dropna().unique()
+)
+
+selected_teams = st.sidebar.multiselect(
+
+    "Teams",
+
+    teams,
+
+    default=teams
+
+)
+
+sort_options = [
+
+    "xGSA",
+    "Save %",
+    "GA/60",
+    "Saves/60",
+    "Shots Against/60"
+
 ]
 
+selected_sort = st.sidebar.selectbox(
+
+    "Sort By",
+
+    sort_options
+
+)
+
 # ==================================================
-# GOALIE SELECT
+# FILTER DATA
 # ==================================================
+
+filtered_df = df[
+
+    (df["Games played"] >= min_games) &
+
+    (df["Team"].isin(selected_teams))
+
+]
+
+ascending_sort = False
+
+if selected_sort == "GA/60":
+
+    ascending_sort = True
+
+filtered_df = filtered_df.sort_values(
+
+    by=selected_sort,
+
+    ascending=ascending_sort
+
+)
+
+# ==================================================
+# TOP METRICS
+# ==================================================
+
+m1, m2, m3, m4 = st.columns(4)
+
+with m1:
+
+    st.metric(
+        "Goalies",
+        len(filtered_df)
+    )
+
+with m2:
+
+    st.metric(
+        "Best xGSA",
+        round(filtered_df["xGSA"].max(),1)
+    )
+
+with m3:
+
+    st.metric(
+        "Best Save %",
+        round(filtered_df["Save %"].max(),1)
+    )
+
+with m4:
+
+    st.metric(
+        "Lowest GA/60",
+        round(filtered_df["GA/60"].min(),2)
+    )
+
+# ==================================================
+# XGSA CHART
+# ==================================================
+
+st.markdown("---")
+
+st.subheader("📊 xGSA Rankings")
+
+chart_df = filtered_df.sort_values(
+    by="xGSA",
+    ascending=True
+)
+
+fig = px.bar(
+
+    chart_df,
+
+    x="xGSA",
+
+    y="Player",
+
+    orientation="h",
+
+    color="xGSA",
+
+    text="xGSA",
+
+    hover_data=[
+
+        "Team",
+        "Games played",
+        "Save %",
+        "GA/60"
+
+    ]
+
+)
+
+fig.update_layout(
+
+    height=700,
+
+    template="plotly_dark",
+
+    yaxis_title="",
+
+    xaxis_title="xGSA"
+
+)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
+
+# ==================================================
+# LEADERBOARD
+# ==================================================
+
+st.markdown("---")
+
+st.subheader("📋 Goalie Leaderboard")
+
+display_cols = [
+
+    "Player",
+    "Team",
+    "Games played",
+    "TOI Minutes",
+    "xGSA",
+    "Save %",
+    "GA/60",
+    "Saves/60",
+    "Shots Against/60",
+    "xGA/60",
+    "xG per shot taken"
+
+]
+
+st.dataframe(
+
+    filtered_df[
+        display_cols
+    ],
+
+    use_container_width=True,
+
+    height=500
+
+)
+
+# ==================================================
+# GOALIE COMPARISON
+# ==================================================
+
+st.markdown("---")
+
+st.subheader("⚔️ Goalie Comparison")
 
 goalies = sorted(
     filtered_df["Player"].dropna().unique()
 )
 
-col1, col2 = st.columns(2)
+g1, g2 = st.columns(2)
 
-with col1:
+with g1:
 
     goalie1 = st.selectbox(
         "Goalie 1",
         goalies
     )
 
-with col2:
+with g2:
 
     goalie2 = st.selectbox(
         "Goalie 2",
@@ -230,7 +419,7 @@ p2 = filtered_df[
 ].iloc[0]
 
 # ==================================================
-# METRICS
+# COMPARISON METRICS
 # ==================================================
 
 comparison_metrics = [
@@ -286,10 +475,8 @@ def get_colors(metric, v1, v2):
     return "#374151", "#374151"
 
 # ==================================================
-# COMPARISON
+# COMPARISON DISPLAY
 # ==================================================
-
-st.markdown("---")
 
 for metric_name, column_name in comparison_metrics:
 
