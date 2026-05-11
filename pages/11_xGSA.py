@@ -26,13 +26,13 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN DATA
+# CLEAN COLUMNS
 # ==================================================
 
 df.columns = df.columns.str.strip()
 
 # ==================================================
-# FIX TIME ON ICE
+# TOI CONVERTER
 # ==================================================
 
 def toi_to_minutes(toi):
@@ -41,34 +41,56 @@ def toi_to_minutes(toi):
 
         parts = str(toi).split(":")
 
-        hours = int(parts[0])
+        # MM:SS
 
-        minutes = int(parts[1])
+        if len(parts) == 2:
 
-        seconds = int(parts[2])
+            minutes = int(parts[0])
+            seconds = int(parts[1])
 
-        total_minutes = (
+            return round(
+                minutes + (seconds / 60),
+                2
+            )
 
-            hours * 60 +
+        # HH:MM:SS
 
-            minutes +
+        elif len(parts) == 3:
 
-            seconds / 60
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            seconds = int(parts[2])
 
-        )
+            total_minutes = (
 
-        return round(total_minutes,2)
+                hours * 60 +
+
+                minutes +
+
+                seconds / 60
+
+            )
+
+            return round(total_minutes,2)
+
+        else:
+
+            return 0
 
     except:
 
         return 0
+
+# ==================================================
+# TOI MINUTES
+# ==================================================
 
 df["TOI Minutes"] = df[
     "Time on ice"
 ].apply(toi_to_minutes)
 
 # ==================================================
-# CONVERT NUMERIC
+# NUMERIC COLUMNS
 # ==================================================
 
 numeric_cols = [
@@ -106,7 +128,7 @@ df["Save %"] = (
 ) * 100
 
 # ==================================================
-# GOALS AGAINST /60
+# GA/60
 # ==================================================
 
 df["GA/60"] = (
@@ -118,7 +140,7 @@ df["GA/60"] = (
 ) * 60
 
 # ==================================================
-# SAVES /60
+# SAVES/60
 # ==================================================
 
 df["Saves/60"] = (
@@ -130,7 +152,19 @@ df["Saves/60"] = (
 ) * 60
 
 # ==================================================
-# xGA /60
+# SHOTS FACED/60
+# ==================================================
+
+df["Shots Against/60"] = (
+
+    df["Shots on goal"] /
+
+    df["TOI Minutes"]
+
+) * 60
+
+# ==================================================
+# xGA/60
 # ==================================================
 
 df["xGA/60"] = (
@@ -191,7 +225,7 @@ selected_teams = st.sidebar.multiselect(
 
 )
 
-# SORT OPTION
+# SORT
 
 sort_options = [
 
@@ -200,7 +234,7 @@ sort_options = [
     "GA/60",
     "xGA/60",
     "Saves/60",
-    "xG per shot taken"
+    "Shots Against/60"
 
 ]
 
@@ -288,12 +322,15 @@ fig = px.bar(
 
     color="xGSA",
 
+    text="xGSA",
+
     hover_data=[
 
         "Team",
         "Games played",
         "Save %",
-        "xG conceded"
+        "xG conceded",
+        "GA/60"
 
     ]
 
@@ -344,7 +381,8 @@ scatter_fig = px.scatter(
 
         "Team",
         "Games played",
-        "GA/60"
+        "GA/60",
+        "xGA/60"
 
     ]
 
@@ -368,7 +406,7 @@ st.plotly_chart(
 )
 
 # ==================================================
-# GOALIE TABLE
+# GOALIE LEADERBOARD
 # ==================================================
 
 st.markdown("---")
@@ -388,6 +426,7 @@ display_cols = [
     "Saves",
     "GA/60",
     "Saves/60",
+    "Shots Against/60",
     "xGA/60",
     "xG conceded",
     "xG per shot taken",
@@ -454,6 +493,7 @@ compare_df = pd.DataFrame({
         "Save %",
         "GA/60",
         "Saves/60",
+        "Shots Against/60",
         "xGA/60",
         "xG per shot taken"
 
@@ -465,6 +505,7 @@ compare_df = pd.DataFrame({
         p1["Save %"],
         p1["GA/60"],
         p1["Saves/60"],
+        p1["Shots Against/60"],
         p1["xGA/60"],
         p1["xG per shot taken"]
 
@@ -476,6 +517,7 @@ compare_df = pd.DataFrame({
         p2["Save %"],
         p2["GA/60"],
         p2["Saves/60"],
+        p2["Shots Against/60"],
         p2["xGA/60"],
         p2["xG per shot taken"]
 
