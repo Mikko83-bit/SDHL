@@ -10,6 +10,10 @@ st.set_page_config(
     layout="wide"
 )
 
+# ==================================================
+# TITLE
+# ==================================================
+
 st.title("🥅 Goalie Comparison")
 
 # ==================================================
@@ -21,13 +25,13 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN COLUMNS
+# CLEAN DATA
 # ==================================================
 
 df.columns = df.columns.str.strip()
 
 # ==================================================
-# TOI TO MINUTES
+# TOI CONVERTER
 # ==================================================
 
 def toi_to_minutes(toi):
@@ -35,6 +39,8 @@ def toi_to_minutes(toi):
     try:
 
         parts = str(toi).split(":")
+
+        # HH:MM:SS
 
         if len(parts) == 3:
 
@@ -48,9 +54,11 @@ def toi_to_minutes(toi):
 
                 minutes +
 
-                seconds / 60
+                (seconds / 60)
 
             )
+
+        # MM:SS
 
         elif len(parts) == 2:
 
@@ -61,7 +69,7 @@ def toi_to_minutes(toi):
 
                 minutes +
 
-                seconds / 60
+                (seconds / 60)
 
             )
 
@@ -115,7 +123,7 @@ df["Save %"] = (
 ) * 100
 
 # ==================================================
-# PER 60 STATS
+# PER 60 METRICS
 # ==================================================
 
 df["GA/60"] = (
@@ -189,7 +197,7 @@ filtered_df = df[
 # ==================================================
 
 goalies = sorted(
-    filtered_df["Player"].unique()
+    filtered_df["Player"].dropna().unique()
 )
 
 col1, col2 = st.columns(2)
@@ -206,7 +214,7 @@ with col2:
     goalie2 = st.selectbox(
         "Goalie 2",
         goalies,
-        index=1
+        index=min(1, len(goalies)-1)
     )
 
 # ==================================================
@@ -238,7 +246,7 @@ comparison_metrics = [
 ]
 
 # ==================================================
-# LOWER BETTER METRICS
+# LOWER BETTER
 # ==================================================
 
 lower_better = [
@@ -253,32 +261,32 @@ lower_better = [
 # COLOR FUNCTION
 # ==================================================
 
-def get_colors(metric, value1, value2):
+def get_colors(metric, v1, v2):
 
     if metric in lower_better:
 
-        if value1 < value2:
+        if v1 < v2:
 
             return "#16A34A", "#DC2626"
 
-        elif value2 < value1:
+        elif v2 < v1:
 
             return "#DC2626", "#16A34A"
 
     else:
 
-        if value1 > value2:
+        if v1 > v2:
 
             return "#16A34A", "#DC2626"
 
-        elif value2 > value1:
+        elif v2 > v1:
 
             return "#DC2626", "#16A34A"
 
     return "#374151", "#374151"
 
 # ==================================================
-# COMPARISON TABLE
+# COMPARISON
 # ==================================================
 
 st.markdown("---")
@@ -301,31 +309,31 @@ for metric_name, column_name in comparison_metrics:
         value2
     )
 
-    c1, c2, c3 = st.columns([1.2, 2, 2])
+    c1, c2, c3 = st.columns([1.1, 2, 2])
 
     # ==================================================
-    # METRIC
+    # METRIC LABEL
     # ==================================================
 
     with c1:
 
         st.markdown(
             f"""
-            <div style="
-                background:#0F172A;
-                border-radius:12px;
-                height:85px;
-                display:flex;
-                justify-content:center;
-                align-items:center;
-                font-size:18px;
-                font-weight:700;
-                color:white;
-                margin-bottom:10px;
-            ">
-                {metric_name}
-            </div>
-            """,
+<div style="
+background:#0F172A;
+border-radius:12px;
+height:90px;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:18px;
+font-weight:700;
+color:white;
+margin-bottom:10px;
+">
+{metric_name}
+</div>
+""",
             unsafe_allow_html=True
         )
 
@@ -337,34 +345,34 @@ for metric_name, column_name in comparison_metrics:
 
         st.markdown(
             f"""
-            <div style="
-                background:{color1};
-                border-radius:12px;
-                padding:12px;
-                height:85px;
-                margin-bottom:10px;
-            ">
+<div style="
+background:{color1};
+border-radius:12px;
+padding:12px;
+height:90px;
+margin-bottom:10px;
+">
 
-                <div style="
-                    font-size:13px;
-                    color:white;
-                    font-weight:700;
-                ">
-                    {goalie1}
-                </div>
+<div style="
+font-size:13px;
+color:white;
+font-weight:700;
+">
+{goalie1}
+</div>
 
-                <div style="
-                    font-size:34px;
-                    font-weight:800;
-                    color:white;
-                    line-height:1;
-                    margin-top:8px;
-                ">
-                    {value1}
-                </div>
+<div style="
+font-size:34px;
+font-weight:800;
+color:white;
+line-height:1;
+margin-top:8px;
+">
+{value1}
+</div>
 
-            </div>
-            """,
+</div>
+""",
             unsafe_allow_html=True
         )
 
@@ -376,33 +384,33 @@ for metric_name, column_name in comparison_metrics:
 
         st.markdown(
             f"""
-            <div style="
-                background:{color2};
-                border-radius:12px;
-                padding:12px;
-                height:85px;
-                margin-bottom:10px;
-            ">
+<div style="
+background:{color2};
+border-radius:12px;
+padding:12px;
+height:90px;
+margin-bottom:10px;
+">
 
-                <div style="
-                    font-size:13px;
-                    color:white;
-                    font-weight:700;
-                ">
-                    {goalie2}
-                </div>
+<div style="
+font-size:13px;
+color:white;
+font-weight:700;
+">
+{goalie2}
+</div>
 
-                <div style="
-                    font-size:34px;
-                    font-weight:800;
-                    color:white;
-                    line-height:1;
-                    margin-top:8px;
-                ">
-                    {value2}
-                </div>
+<div style="
+font-size:34px;
+font-weight:800;
+color:white;
+line-height:1;
+margin-top:8px;
+">
+{value2}
+</div>
 
-            </div>
-            """,
+</div>
+""",
             unsafe_allow_html=True
         )
