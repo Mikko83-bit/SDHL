@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
 # ==================================================
 # PAGE CONFIG
@@ -11,11 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🥅 xGSA Dashboard")
-
-st.markdown(
-    "Advanced SDHL goalie analytics dashboard"
-)
+st.title("🥅 Goalie Comparison")
 
 # ==================================================
 # LOAD DATA
@@ -32,7 +27,7 @@ df = pd.read_excel(
 df.columns = df.columns.str.strip()
 
 # ==================================================
-# TOI CONVERTER
+# TOI TO MINUTES
 # ==================================================
 
 def toi_to_minutes(toi):
@@ -40,8 +35,6 @@ def toi_to_minutes(toi):
     try:
 
         parts = str(toi).split(":")
-
-        # HH:MM:SS
 
         if len(parts) == 3:
 
@@ -55,11 +48,9 @@ def toi_to_minutes(toi):
 
                 minutes +
 
-                (seconds / 60)
+                seconds / 60
 
             )
-
-        # MM:SS
 
         elif len(parts) == 2:
 
@@ -70,7 +61,7 @@ def toi_to_minutes(toi):
 
                 minutes +
 
-                (seconds / 60)
+                seconds / 60
 
             )
 
@@ -100,8 +91,7 @@ numeric_cols = [
     "Shots on goal",
     "Saves",
     "xG conceded",
-    "xG per shot taken",
-    "Age"
+    "xG per shot taken"
 
 ]
 
@@ -125,7 +115,7 @@ df["Save %"] = (
 ) * 100
 
 # ==================================================
-# PER 60 METRICS
+# PER 60 STATS
 # ==================================================
 
 df["GA/60"] = (
@@ -178,9 +168,7 @@ df[num_cols] = df[
 
 st.sidebar.header("Filters")
 
-# MIN GP
-
-min_gp = st.sidebar.slider(
+min_games = st.sidebar.slider(
 
     "Minimum Games Played",
 
@@ -188,228 +176,37 @@ min_gp = st.sidebar.slider(
 
     max_value=int(df["Games played"].max()),
 
-    value=5,
-
-    step=1
+    value=5
 
 )
-
-# TEAM FILTER
-
-teams = sorted(
-    df["Team"].dropna().unique()
-)
-
-selected_teams = st.sidebar.multiselect(
-
-    "Teams",
-
-    teams,
-
-    default=teams
-
-)
-
-# SORT OPTIONS
-
-sort_options = [
-
-    "xGSA",
-    "Save %",
-    "GA/60",
-    "Saves/60",
-    "Shots Against/60"
-
-]
-
-selected_sort = st.sidebar.selectbox(
-
-    "Sort By",
-
-    sort_options
-
-)
-
-# ==================================================
-# FILTER DATA
-# ==================================================
 
 filtered_df = df[
-
-    (df["Games played"] >= min_gp) &
-
-    (df["Team"].isin(selected_teams))
-
+    df["Games played"] >= min_games
 ]
 
-ascending_sort = False
-
-if selected_sort == "GA/60":
-
-    ascending_sort = True
-
-filtered_df = filtered_df.sort_values(
-
-    by=selected_sort,
-
-    ascending=ascending_sort
-
-)
-
 # ==================================================
-# TOP METRICS
+# GOALIE SELECT
 # ==================================================
 
-m1, m2, m3, m4 = st.columns(4)
-
-with m1:
-
-    st.metric(
-        "Goalies",
-        len(filtered_df)
-    )
-
-with m2:
-
-    st.metric(
-        "Best xGSA",
-        round(filtered_df["xGSA"].max(),1)
-    )
-
-with m3:
-
-    st.metric(
-        "Best Save %",
-        round(filtered_df["Save %"].max(),1)
-    )
-
-with m4:
-
-    st.metric(
-        "Lowest GA/60",
-        round(filtered_df["GA/60"].min(),2)
-    )
-
-# ==================================================
-# XGSA CHART
-# ==================================================
-
-st.markdown("---")
-
-st.subheader("📊 xGSA Rankings")
-
-chart_df = filtered_df.sort_values(
-    by="xGSA",
-    ascending=True
-)
-
-fig = px.bar(
-
-    chart_df,
-
-    x="xGSA",
-
-    y="Player",
-
-    orientation="h",
-
-    color="xGSA",
-
-    text="xGSA",
-
-    hover_data=[
-
-        "Team",
-        "Games played",
-        "Save %",
-        "GA/60"
-
-    ]
-
-)
-
-fig.update_layout(
-
-    height=700,
-
-    template="plotly_dark",
-
-    yaxis_title="",
-
-    xaxis_title="xGSA"
-
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# ==================================================
-# LEADERBOARD
-# ==================================================
-
-st.markdown("---")
-
-st.subheader("📋 Goalie Leaderboard")
-
-display_cols = [
-
-    "Player",
-    "Team",
-    "Games played",
-    "TOI Minutes",
-    "xGSA",
-    "Save %",
-    "GA/60",
-    "Saves/60",
-    "Shots Against/60",
-    "xGA/60",
-    "xG per shot taken"
-
-]
-
-st.dataframe(
-
-    filtered_df[
-        display_cols
-    ],
-
-    use_container_width=True,
-
-    height=500
-
-)
-
-# ==================================================
-# GOALIE COMPARISON
-# ==================================================
-
-st.markdown("---")
-
-st.subheader("⚔️ Goalie Comparison")
-
-goalie_names = sorted(
+goalies = sorted(
     filtered_df["Player"].unique()
 )
 
-g1, g2 = st.columns(2)
+col1, col2 = st.columns(2)
 
-with g1:
+with col1:
 
     goalie1 = st.selectbox(
         "Goalie 1",
-        goalie_names,
-        key="goalie1"
+        goalies
     )
 
-with g2:
+with col2:
 
     goalie2 = st.selectbox(
         "Goalie 2",
-        goalie_names,
-        index=min(1, len(goalie_names)-1),
-        key="goalie2"
+        goalies,
+        index=1
     )
 
 # ==================================================
@@ -425,7 +222,7 @@ p2 = filtered_df[
 ].iloc[0]
 
 # ==================================================
-# COMPARISON METRICS
+# METRICS
 # ==================================================
 
 comparison_metrics = [
@@ -441,7 +238,7 @@ comparison_metrics = [
 ]
 
 # ==================================================
-# LOWER IS BETTER
+# LOWER BETTER METRICS
 # ==================================================
 
 lower_better = [
@@ -456,9 +253,9 @@ lower_better = [
 # COLOR FUNCTION
 # ==================================================
 
-def get_colors(metric_name, value1, value2):
+def get_colors(metric, value1, value2):
 
-    if metric_name in lower_better:
+    if metric in lower_better:
 
         if value1 < value2:
 
@@ -481,8 +278,10 @@ def get_colors(metric_name, value1, value2):
     return "#374151", "#374151"
 
 # ==================================================
-# DISPLAY COMPARISON
+# COMPARISON TABLE
 # ==================================================
+
+st.markdown("---")
 
 for metric_name, column_name in comparison_metrics:
 
@@ -510,25 +309,23 @@ for metric_name, column_name in comparison_metrics:
 
     with c1:
 
-        metric_html = f"""
-        <div style="
-            background:#0F172A;
-            border-radius:12px;
-            height:85px;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            font-size:18px;
-            font-weight:700;
-            color:white;
-            margin-bottom:10px;
-        ">
-            {metric_name}
-        </div>
-        """
-
         st.markdown(
-            metric_html,
+            f"""
+            <div style="
+                background:#0F172A;
+                border-radius:12px;
+                height:85px;
+                display:flex;
+                justify-content:center;
+                align-items:center;
+                font-size:18px;
+                font-weight:700;
+                color:white;
+                margin-bottom:10px;
+            ">
+                {metric_name}
+            </div>
+            """,
             unsafe_allow_html=True
         )
 
@@ -538,38 +335,36 @@ for metric_name, column_name in comparison_metrics:
 
     with c2:
 
-        goalie1_html = f"""
-        <div style="
-            background:{color1};
-            border-radius:12px;
-            padding:12px;
-            height:85px;
-            margin-bottom:10px;
-        ">
-
-            <div style="
-                font-size:13px;
-                color:white;
-                font-weight:700;
-            ">
-                {goalie1}
-            </div>
-
-            <div style="
-                font-size:34px;
-                font-weight:800;
-                color:white;
-                line-height:1;
-                margin-top:8px;
-            ">
-                {value1}
-            </div>
-
-        </div>
-        """
-
         st.markdown(
-            goalie1_html,
+            f"""
+            <div style="
+                background:{color1};
+                border-radius:12px;
+                padding:12px;
+                height:85px;
+                margin-bottom:10px;
+            ">
+
+                <div style="
+                    font-size:13px;
+                    color:white;
+                    font-weight:700;
+                ">
+                    {goalie1}
+                </div>
+
+                <div style="
+                    font-size:34px;
+                    font-weight:800;
+                    color:white;
+                    line-height:1;
+                    margin-top:8px;
+                ">
+                    {value1}
+                </div>
+
+            </div>
+            """,
             unsafe_allow_html=True
         )
 
@@ -579,37 +374,35 @@ for metric_name, column_name in comparison_metrics:
 
     with c3:
 
-        goalie2_html = f"""
-        <div style="
-            background:{color2};
-            border-radius:12px;
-            padding:12px;
-            height:85px;
-            margin-bottom:10px;
-        ">
-
-            <div style="
-                font-size:13px;
-                color:white;
-                font-weight:700;
-            ">
-                {goalie2}
-            </div>
-
-            <div style="
-                font-size:34px;
-                font-weight:800;
-                color:white;
-                line-height:1;
-                margin-top:8px;
-            ">
-                {value2}
-            </div>
-
-        </div>
-        """
-
         st.markdown(
-            goalie2_html,
+            f"""
+            <div style="
+                background:{color2};
+                border-radius:12px;
+                padding:12px;
+                height:85px;
+                margin-bottom:10px;
+            ">
+
+                <div style="
+                    font-size:13px;
+                    color:white;
+                    font-weight:700;
+                ">
+                    {goalie2}
+                </div>
+
+                <div style="
+                    font-size:34px;
+                    font-weight:800;
+                    color:white;
+                    line-height:1;
+                    margin-top:8px;
+                ">
+                    {value2}
+                </div>
+
+            </div>
+            """,
             unsafe_allow_html=True
         )
