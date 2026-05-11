@@ -26,7 +26,7 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN DATA
+# CLEAN COLUMNS
 # ==================================================
 
 df.columns = df.columns.str.strip()
@@ -101,8 +101,6 @@ numeric_cols = [
     "Saves",
     "xG conceded",
     "xG per shot taken",
-    "xG per goal conceded",
-    "xG per shot saved",
     "Age"
 
 ]
@@ -180,7 +178,7 @@ df[num_cols] = df[
 
 st.sidebar.header("Filters")
 
-# GP FILTER
+# MIN GP
 
 min_gp = st.sidebar.slider(
 
@@ -212,7 +210,7 @@ selected_teams = st.sidebar.multiselect(
 
 )
 
-# SORT FILTER
+# SORT OPTIONS
 
 sort_options = [
 
@@ -348,7 +346,7 @@ st.plotly_chart(
 )
 
 # ==================================================
-# GOALIE TABLE
+# LEADERBOARD
 # ==================================================
 
 st.markdown("---")
@@ -455,7 +453,7 @@ lower_better = [
 ]
 
 # ==================================================
-# COLOR LOGIC
+# COLOR FUNCTION
 # ==================================================
 
 def get_colors(metric_name, value1, value2):
@@ -506,109 +504,112 @@ for metric_name, column_name in comparison_metrics:
 
     c1, c2, c3 = st.columns([1.2, 2, 2])
 
+    # ==================================================
     # METRIC
+    # ==================================================
 
     with c1:
 
+        metric_html = f"""
+        <div style="
+            background:#0F172A;
+            border-radius:12px;
+            height:85px;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            font-size:18px;
+            font-weight:700;
+            color:white;
+            margin-bottom:10px;
+        ">
+            {metric_name}
+        </div>
+        """
+
         st.markdown(
-
-            f"""
-            <div style="
-                background:#0F172A;
-                border-radius:12px;
-                height:85px;
-                display:flex;
-                justify-content:center;
-                align-items:center;
-                font-size:18px;
-                font-weight:700;
-                color:white;
-                margin-bottom:10px;
-            ">
-                {metric_name}
-            </div>
-            """,
-
+            metric_html,
             unsafe_allow_html=True
-
         )
 
+    # ==================================================
     # GOALIE 1
+    # ==================================================
 
     with c2:
 
-        st.markdown(
+        goalie1_html = f"""
+        <div style="
+            background:{color1};
+            border-radius:12px;
+            padding:12px;
+            height:85px;
+            margin-bottom:10px;
+        ">
 
-            f"""
             <div style="
-                background:{color1};
-                border-radius:12px;
-                padding:12px;
-                height:85px;
-                margin-bottom:10px;
+                font-size:13px;
+                color:white;
+                font-weight:700;
             ">
-
-                <div style="
-                    font-size:13px;
-                    color:white;
-                    font-weight:700;
-                ">
-                    {goalie1}
-                </div>
-
-                <div style="
-                    font-size:34px;
-                    font-weight:800;
-                    color:white;
-                    line-height:1;
-                    margin-top:8px;
-                ">
-                    {value1}
-                </div>
-
+                {goalie1}
             </div>
-            """,
 
+            <div style="
+                font-size:34px;
+                font-weight:800;
+                color:white;
+                line-height:1;
+                margin-top:8px;
+            ">
+                {value1}
+            </div>
+
+        </div>
+        """
+
+        st.markdown(
+            goalie1_html,
             unsafe_allow_html=True
-
         )
 
+    # ==================================================
     # GOALIE 2
+    # ==================================================
 
     with c3:
 
-        st.markdown(
+        goalie2_html = f"""
+        <div style="
+            background:{color2};
+            border-radius:12px;
+            padding:12px;
+            height:85px;
+            margin-bottom:10px;
+        ">
 
-            f"""
             <div style="
-                background:{color2};
-                border-radius:12px;
-                padding:12px;
-                height:85px;
-                margin-bottom:10px;
+                font-size:13px;
+                color:white;
+                font-weight:700;
             ">
-
-                <div style="
-                    font-size:13px;
-                    color:white;
-                    font-weight:700;
-                ">
-                    {goalie2}
-                </div>
-
-                <div style="
-                    font-size:34px;
-                    font-weight:800;
-                    color:white;
-                    line-height:1;
-                    margin-top:8px;
-                ">
-                    {value2}
-                </div>
-
+                {goalie2}
             </div>
-            """,
 
+            <div style="
+                font-size:34px;
+                font-weight:800;
+                color:white;
+                line-height:1;
+                margin-top:8px;
+            ">
+                {value2}
+            </div>
+
+        </div>
+        """
+
+        st.markdown(
+            goalie2_html,
             unsafe_allow_html=True
-
         )
