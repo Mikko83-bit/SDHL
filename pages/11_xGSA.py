@@ -26,7 +26,7 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN COLUMNS
+# CLEAN DATA
 # ==================================================
 
 df.columns = df.columns.str.strip()
@@ -71,11 +71,12 @@ def toi_to_minutes(toi):
 
             )
 
-            return round(total_minutes,2)
+            return round(
+                total_minutes,
+                2
+            )
 
-        else:
-
-            return 0
+        return 0
 
     except:
 
@@ -128,7 +129,7 @@ df["Save %"] = (
 ) * 100
 
 # ==================================================
-# GA/60
+# PER 60 METRICS
 # ==================================================
 
 df["GA/60"] = (
@@ -139,10 +140,6 @@ df["GA/60"] = (
 
 ) * 60
 
-# ==================================================
-# SAVES/60
-# ==================================================
-
 df["Saves/60"] = (
 
     df["Saves"] /
@@ -151,10 +148,6 @@ df["Saves/60"] = (
 
 ) * 60
 
-# ==================================================
-# SHOTS FACED/60
-# ==================================================
-
 df["Shots Against/60"] = (
 
     df["Shots on goal"] /
@@ -162,10 +155,6 @@ df["Shots Against/60"] = (
     df["TOI Minutes"]
 
 ) * 60
-
-# ==================================================
-# xGA/60
-# ==================================================
 
 df["xGA/60"] = (
 
@@ -225,7 +214,7 @@ selected_teams = st.sidebar.multiselect(
 
 )
 
-# SORT
+# SORT OPTIONS
 
 sort_options = [
 
@@ -267,41 +256,41 @@ filtered_df = filtered_df.sort_values(
 # TOP METRICS
 # ==================================================
 
-top1, top2, top3, top4 = st.columns(4)
+m1, m2, m3, m4 = st.columns(4)
 
-with top1:
+with m1:
 
     st.metric(
         "Goalies",
         len(filtered_df)
     )
 
-with top2:
+with m2:
 
     st.metric(
         "Best xGSA",
         round(filtered_df["xGSA"].max(),1)
     )
 
-with top3:
+with m3:
 
     st.metric(
         "Best Save %",
         round(filtered_df["Save %"].max(),1)
     )
 
-with top4:
+with m4:
 
     st.metric(
         "Lowest GA/60",
         round(filtered_df["GA/60"].min(),2)
     )
 
-st.markdown("---")
+# ==================================================
+# xGSA CHART
+# ==================================================
 
-# ==================================================
-# xGSA BAR CHART
-# ==================================================
+st.markdown("---")
 
 st.subheader("📊 xGSA Rankings")
 
@@ -329,7 +318,6 @@ fig = px.bar(
         "Team",
         "Games played",
         "Save %",
-        "xG conceded",
         "GA/60"
 
     ]
@@ -344,9 +332,7 @@ fig.update_layout(
 
     yaxis_title="",
 
-    xaxis_title="xGSA",
-
-    font=dict(size=15)
+    xaxis_title="xGSA"
 
 )
 
@@ -406,7 +392,7 @@ st.plotly_chart(
 )
 
 # ==================================================
-# GOALIE LEADERBOARD
+# LEADERBOARD
 # ==================================================
 
 st.markdown("---")
@@ -442,7 +428,7 @@ st.dataframe(
 
     use_container_width=True,
 
-    height=700
+    height=650
 
 )
 
@@ -485,50 +471,170 @@ p2 = filtered_df[
     filtered_df["Player"] == goalie2
 ].iloc[0]
 
-compare_df = pd.DataFrame({
+# ==================================================
+# METRICS
+# ==================================================
 
-    "Metric": [
+comparison_metrics = [
 
-        "xGSA",
-        "Save %",
-        "GA/60",
-        "Saves/60",
-        "Shots Against/60",
-        "xGA/60",
-        "xG per shot taken"
+    ("xGSA", "xGSA"),
+    ("Save %", "Save %"),
+    ("GA/60", "GA/60"),
+    ("Saves/60", "Saves/60"),
+    ("Shots Against/60", "Shots Against/60"),
+    ("xGA/60", "xGA/60"),
+    ("xG per shot taken", "xG per shot taken")
 
-    ],
+]
 
-    goalie1: [
+# LOWER IS BETTER
 
-        p1["xGSA"],
-        p1["Save %"],
-        p1["GA/60"],
-        p1["Saves/60"],
-        p1["Shots Against/60"],
-        p1["xGA/60"],
-        p1["xG per shot taken"]
+lower_better = [
 
-    ],
+    "GA/60",
+    "xGA/60"
 
-    goalie2: [
+]
 
-        p2["xGSA"],
-        p2["Save %"],
-        p2["GA/60"],
-        p2["Saves/60"],
-        p2["Shots Against/60"],
-        p2["xGA/60"],
-        p2["xG per shot taken"]
+# ==================================================
+# COLOR LOGIC
+# ==================================================
 
-    ]
+def get_colors(metric_name, v1, v2):
 
-})
+    if metric_name in lower_better:
 
-st.dataframe(
+        if v1 < v2:
 
-    compare_df,
+            return "#1E8E3E", "#C62828"
 
-    use_container_width=True
+        elif v2 < v1:
 
-)
+            return "#C62828", "#1E8E3E"
+
+    else:
+
+        if v1 > v2:
+
+            return "#1E8E3E", "#C62828"
+
+        elif v2 > v1:
+
+            return "#C62828", "#1E8E3E"
+
+    return "#2B2B2B", "#2B2B2B"
+
+# ==================================================
+# DISPLAY COMPARISON
+# ==================================================
+
+for metric_name, col_name in comparison_metrics:
+
+    v1 = round(float(p1[col_name]), 2)
+    v2 = round(float(p2[col_name]), 2)
+
+    color1, color2 = get_colors(
+        metric_name,
+        v1,
+        v2
+    )
+
+    c1, c2, c3 = st.columns([2,3,3])
+
+    # METRIC NAME
+
+    with c1:
+
+        st.markdown(
+            f"""
+            <div style="
+                background:#111827;
+                padding:10px;
+                border-radius:10px;
+                text-align:center;
+                height:75px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-size:17px;
+                font-weight:700;
+                color:white;
+                margin-bottom:8px;
+            ">
+                {metric_name}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # GOALIE 1
+
+    with c2:
+
+        st.markdown(
+            f"""
+            <div style="
+                background:{color1};
+                padding:10px;
+                border-radius:10px;
+                height:75px;
+                margin-bottom:8px;
+            ">
+
+                <div style="
+                    font-size:13px;
+                    color:white;
+                    font-weight:700;
+                ">
+                    {goalie1}
+                </div>
+
+                <div style="
+                    font-size:28px;
+                    color:white;
+                    font-weight:800;
+                    margin-top:2px;
+                ">
+                    {v1}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # GOALIE 2
+
+    with c3:
+
+        st.markdown(
+            f"""
+            <div style="
+                background:{color2};
+                padding:10px;
+                border-radius:10px;
+                height:75px;
+                margin-bottom:8px;
+            ">
+
+                <div style="
+                    font-size:13px;
+                    color:white;
+                    font-weight:700;
+                ">
+                    {goalie2}
+                </div>
+
+                <div style="
+                    font-size:28px;
+                    color:white;
+                    font-weight:800;
+                    margin-top:2px;
+                ">
+                    {v2}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
