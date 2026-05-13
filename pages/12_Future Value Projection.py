@@ -22,35 +22,42 @@ df = pd.read_excel(
 )
 
 # -----------------------------------
-# CREATE SIMPLE OVERALL VALUE
+# RENAME IMPORTANT COLUMNS
 # -----------------------------------
 
-# Muodostetaan yksinkertainen current value
-# käyttäen tärkeimpiä impact-mittareita
+df = df.rename(columns={
+
+    "Goals/60": "Goals_60",
+    "Assists/60": "Assists_60",
+    "Points/60": "Points_60",
+    "xG (Expected goals)/60": "xG_60",
+
+    "Net xG (xG player on 0 opp. team's xG)": "Net_xG",
+
+    "Shots/60": "Shots_60",
+    "Shots on goal/60": "Shots_On_Goal_60"
+})
+
+# -----------------------------------
+# CREATE CURRENT VALUE
+# -----------------------------------
 
 df["Current Value"] = (
-    (
-        pd.to_numeric(df["Goals/60"], errors="coerce").fillna(0)
-        * 0.30
-    )
+
+    df["Goals_60"].fillna(0) * 0.30
+
     +
-    (
-        pd.to_numeric(df["Assists/60"], errors="coerce").fillna(0)
-        * 0.25
-    )
+
+    df["Assists_60"].fillna(0) * 0.25
+
     +
-    (
-        pd.to_numeric(df["xG (Expected goals)/60"], errors="coerce").fillna(0)
-        * 0.25
-    )
+
+    df["xG_60"].fillna(0) * 0.25
+
     +
-    (
-        pd.to_numeric(
-            df["Net xG (xG player on - opp. team's xG)/60"],
-            errors="coerce"
-        ).fillna(0)
-        * 0.20
-    )
+
+    df["Points_60"].fillna(0) * 0.20
+
 ).round(2)
 
 # -----------------------------------
@@ -89,10 +96,8 @@ team = latest["Team"]
 position = latest["Position"]
 
 # -----------------------------------
-# SIMPLE PROJECTION MODEL
-# -----------------------------------
-
 # AGE BONUS
+# -----------------------------------
 
 if age <= 21:
     age_bonus = 8
@@ -109,7 +114,9 @@ elif age <= 30:
 else:
     age_bonus = -4
 
+# -----------------------------------
 # TREND BONUS
+# -----------------------------------
 
 if len(player_df) >= 2:
 
@@ -125,7 +132,9 @@ if len(player_df) >= 2:
 else:
     trend_bonus = 0
 
+# -----------------------------------
 # FINAL PROJECTION
+# -----------------------------------
 
 future_value = (
     current_value
@@ -133,7 +142,10 @@ future_value = (
     + trend_bonus
 )
 
-future_value = round(future_value, 1)
+future_value = round(
+    future_value,
+    1
+)
 
 # -----------------------------------
 # METRICS
@@ -162,7 +174,7 @@ col4.metric(
 )
 
 # -----------------------------------
-# PLAYER INFO TEXT
+# PLAYER INFO
 # -----------------------------------
 
 st.markdown(f"""
@@ -178,9 +190,10 @@ st.markdown(f"""
 # -----------------------------------
 
 graph_metrics = [
-    "Goals/60",
-    "Assists/60",
-    "xG (Expected goals)/60",
+    "Goals_60",
+    "Assists_60",
+    "Points_60",
+    "xG_60",
     "Current Value"
 ]
 
@@ -203,7 +216,7 @@ st.plotly_chart(
 )
 
 # -----------------------------------
-# SHOW PLAYER DATA
+# PLAYER DATA TABLE
 # -----------------------------------
 
 st.subheader("Season Data")
