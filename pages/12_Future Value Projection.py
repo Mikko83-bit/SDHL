@@ -41,10 +41,12 @@ df = df.rename(columns={
 })
 
 # -----------------------------------
-# TOI FILTER
+# SIDEBAR
 # -----------------------------------
 
 st.sidebar.header("Filters")
+
+# MINIMUM TOI
 
 min_toi = st.sidebar.slider(
     "Minimum TOI Minutes",
@@ -54,15 +56,13 @@ min_toi = st.sidebar.slider(
     step=25
 )
 
-# FILTER MINIMUM TOI
+# FILTER TOI
 
 df = df[
     df["TOI_minutes"] >= min_toi
 ]
 
-# -----------------------------------
 # POSITION FILTER
-# -----------------------------------
 
 positions = sorted(
     df["Position"]
@@ -203,16 +203,18 @@ weighted_value = round(
 # -----------------------------------
 
 age_multiplier = (
-    1.20
+
+    1.08
+
     -
-    ((age - 21) * 0.015)
+
+    ((age - 21) * 0.005)
+
 )
 
-# LIMITS
-
 age_multiplier = max(
-    0.90,
-    min(age_multiplier, 1.25)
+    0.95,
+    min(age_multiplier, 1.10)
 )
 
 # -----------------------------------
@@ -230,7 +232,7 @@ if len(player_df) >= 2:
         current_value
         - previous_value
 
-    ) * 0.25
+    ) * 0.15
 
 else:
 
@@ -244,15 +246,35 @@ finishing_delta = latest["Finishing Delta"]
 
 if finishing_delta <= -3:
 
-    finishing_adjustment = 0.20
+    finishing_adjustment = 0.10
 
 elif finishing_delta >= 3:
 
-    finishing_adjustment = -0.20
+    finishing_adjustment = -0.10
 
 else:
 
     finishing_adjustment = 0
+
+# -----------------------------------
+# REGRESSION TO MEAN
+# -----------------------------------
+
+league_average = (
+    df["Current Value"]
+    .mean()
+)
+
+regression_strength = 0.15
+
+regressed_value = (
+
+    weighted_value * (1 - regression_strength)
+
+    +
+
+    league_average * regression_strength
+)
 
 # -----------------------------------
 # FUTURE VALUE
@@ -260,7 +282,7 @@ else:
 
 future_value = (
 
-    weighted_value
+    regressed_value
     * age_multiplier
 
     +
@@ -270,8 +292,22 @@ future_value = (
     +
 
     finishing_adjustment
-
 )
+
+# -----------------------------------
+# CAP EXTREME GROWTH
+# -----------------------------------
+
+max_growth = current_value * 1.15
+
+future_value = min(
+    future_value,
+    max_growth
+)
+
+# -----------------------------------
+# ROUND
+# -----------------------------------
 
 future_value = round(
     future_value,
