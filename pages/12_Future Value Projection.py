@@ -32,14 +32,15 @@ df = df.rename(columns={
     "Points/60": "Points_60",
     "xG (Expected goals)/60": "xG_60",
 
-    "Shots/60": "Shots_60",
-    "Shots on goal/60": "Shots_On_Goal_60",
+    "Goals": "Goals",
+    "xG (Expected goals)": "xG",
 
-    "Net xG (xG player on 0 opp. team's xG)": "Net_xG"
+    "Shots/60": "Shots_60",
+    "Shots on goal/60": "Shots_On_Goal_60"
 })
 
 # -----------------------------------
-# CREATE CURRENT VALUE
+# CURRENT VALUE
 # -----------------------------------
 
 df["Current Value"] = (
@@ -58,6 +59,16 @@ df["Current Value"] = (
 
     df["Points_60"].fillna(0) * 0.20
 
+).round(2)
+
+# -----------------------------------
+# FINISHING DELTA
+# -----------------------------------
+
+df["Finishing Delta"] = (
+    pd.to_numeric(df["Goals"], errors="coerce").fillna(0)
+    -
+    pd.to_numeric(df["xG"], errors="coerce").fillna(0)
 ).round(2)
 
 # -----------------------------------
@@ -110,10 +121,46 @@ player_df = (
 latest = player_df.iloc[-1]
 
 # -----------------------------------
+# WEIGHTED VALUE
+# -----------------------------------
+
+weights = [0.2, 0.3, 0.5]
+
+values = player_df["Current Value"].tolist()
+
+# Jos vähemmän kuin 3 kautta
+if len(values) == 1:
+
+    weighted_value = values[-1]
+
+elif len(values) == 2:
+
+    weighted_value = (
+        values[0] * 0.4
+        +
+        values[1] * 0.6
+    )
+
+else:
+
+    weighted_value = (
+
+        values[-3] * 0.2
+        +
+        values[-2] * 0.3
+        +
+        values[-1] * 0.5
+    )
+
+weighted_value = round(
+    weighted_value,
+    2
+)
+
+# -----------------------------------
 # PLAYER INFO
 # -----------------------------------
 
-current_value = latest["Current Value"]
 age = latest["Age"]
 team = latest["Team"]
 position = latest["Position"]
@@ -156,13 +203,44 @@ else:
     trend_adjustment = 0
 
 # -----------------------------------
-# FUTURE VALUE
+# FINISHING REGRESSION
 # -----------------------------------
 
+finishing_delta = latest["Finishing Delta"]
+
+# Aliperformannut -> pieni boost
+if finishing_delta <= -3:
+
+    finishing_adjustment = 0.20
+
+# Yliperformannut -> pieni regressio
+elif finishing_delta >= 3:
+
+    finishing_adjustment = -0.20
+
+else:
+
+    finishing_adjustment = 0
+
+# -----------------------------------
+# FINAL FUTURE VALUE
+# -----------------------------------
+
+current_value = latest["Current Value"]
+
 future_value = (
-    current_value
+
+    weighted_value
     * age_multiplier
-    + trend_adjustment
+
+    +
+
+    trend_adjustment
+
+    +
+
+    finishing_adjustment
+
 )
 
 future_value = round(
@@ -174,7 +252,7 @@ future_value = round(
 # METRICS
 # -----------------------------------
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 col1.metric(
     "Current Value",
@@ -182,18 +260,23 @@ col1.metric(
 )
 
 col2.metric(
+    "Weighted Value",
+    weighted_value
+)
+
+col3.metric(
     "Projected Future Value",
     future_value
 )
 
-col3.metric(
-    "Age",
-    age
+col4.metric(
+    "Finishing Delta",
+    finishing_delta
 )
 
-col4.metric(
-    "Trend Adjustment",
-    round(trend_adjustment, 2)
+col5.metric(
+    "Age",
+    age
 )
 
 # -----------------------------------
@@ -217,7 +300,8 @@ graph_metrics = [
     "Assists_60",
     "Points_60",
     "xG_60",
-    "Current Value"
+    "Current Value",
+    "Finishing Delta"
 ]
 
 metric_choice = st.selectbox(
@@ -266,14 +350,15 @@ raw_columns = [
     "Shots",
     "Shots on goal",
 
-    "xG (Expected goals)",
+    "xG",
 
     "Goals_60",
     "Assists_60",
     "Points_60",
     "xG_60",
 
-    "Current Value"
+    "Current Value",
+    "Finishing Delta"
 ]
 
 available_columns = [
