@@ -22,42 +22,46 @@ df = pd.read_excel(
 )
 
 # -----------------------------------
-# REQUIRED COLUMN
+# CREATE SIMPLE OVERALL VALUE
 # -----------------------------------
 
-# Vaihda tämä myöhemmin omaan overall/value metriikkaan
-# jos sellainen löytyy valmiina datasta
+# Muodostetaan yksinkertainen current value
+# käyttäen tärkeimpiä impact-mittareita
 
-if "Overall Score" not in df.columns:
-
-    # Yksinkertainen nykyarvo demo
-    df["Overall Score"] = (
-        (
-            pd.to_numeric(df["Goals/60"], errors="coerce").fillna(0)
-            * 0.30
-        )
-        +
-        (
-            pd.to_numeric(df["Assists/60"], errors="coerce").fillna(0)
-            * 0.25
-        )
-        +
-        (
-            pd.to_numeric(df["xG (Expected goals)/60"], errors="coerce").fillna(0)
-            * 0.25
-        )
-        +
-        (
-            pd.to_numeric(df["Net xG (xG player on - opp. team's xG)/60"], errors="coerce").fillna(0)
-            * 0.20
-        )
-    ).round(2)
+df["Current Value"] = (
+    (
+        pd.to_numeric(df["Goals/60"], errors="coerce").fillna(0)
+        * 0.30
+    )
+    +
+    (
+        pd.to_numeric(df["Assists/60"], errors="coerce").fillna(0)
+        * 0.25
+    )
+    +
+    (
+        pd.to_numeric(df["xG (Expected goals)/60"], errors="coerce").fillna(0)
+        * 0.25
+    )
+    +
+    (
+        pd.to_numeric(
+            df["Net xG (xG player on - opp. team's xG)/60"],
+            errors="coerce"
+        ).fillna(0)
+        * 0.20
+    )
+).round(2)
 
 # -----------------------------------
 # PLAYER SELECT
 # -----------------------------------
 
-players = sorted(df["Player"].dropna().unique())
+players = sorted(
+    df["Player"]
+    .dropna()
+    .unique()
+)
 
 selected_player = st.selectbox(
     "Select Player",
@@ -65,7 +69,7 @@ selected_player = st.selectbox(
 )
 
 # -----------------------------------
-# FILTER PLAYER DATA
+# PLAYER DATA
 # -----------------------------------
 
 player_df = (
@@ -76,10 +80,10 @@ player_df = (
 latest = player_df.iloc[-1]
 
 # -----------------------------------
-# CURRENT INFO
+# PLAYER INFO
 # -----------------------------------
 
-current_value = latest["Overall Score"]
+current_value = latest["Current Value"]
 age = latest["Age"]
 team = latest["Team"]
 position = latest["Position"]
@@ -109,7 +113,9 @@ else:
 
 if len(player_df) >= 2:
 
-    previous_value = player_df.iloc[-2]["Overall Score"]
+    previous_value = (
+        player_df.iloc[-2]["Current Value"]
+    )
 
     trend_bonus = (
         current_value
@@ -156,7 +162,7 @@ col4.metric(
 )
 
 # -----------------------------------
-# PLAYER INFO
+# PLAYER INFO TEXT
 # -----------------------------------
 
 st.markdown(f"""
@@ -175,17 +181,12 @@ graph_metrics = [
     "Goals/60",
     "Assists/60",
     "xG (Expected goals)/60",
-    "Overall Score"
-]
-
-available_metrics = [
-    m for m in graph_metrics
-    if m in player_df.columns
+    "Current Value"
 ]
 
 metric_choice = st.selectbox(
-    "Select Metric",
-    available_metrics
+    "Select Development Metric",
+    graph_metrics
 )
 
 fig = px.line(
@@ -193,7 +194,7 @@ fig = px.line(
     x="Season",
     y=metric_choice,
     markers=True,
-    title=f"{selected_player} — {metric_choice} Development"
+    title=f"{selected_player} — {metric_choice}"
 )
 
 st.plotly_chart(
@@ -202,7 +203,7 @@ st.plotly_chart(
 )
 
 # -----------------------------------
-# RAW DATA
+# SHOW PLAYER DATA
 # -----------------------------------
 
 st.subheader("Season Data")
