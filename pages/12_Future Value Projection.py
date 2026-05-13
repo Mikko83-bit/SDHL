@@ -32,15 +32,16 @@ df = df.rename(columns={
     "Points/60": "Points_60",
     "xG (Expected goals)/60": "xG_60",
 
-    "Goals": "Goals",
-    "xG (Expected goals)": "xG",
-
     "Shots/60": "Shots_60",
-    "Shots on goal/60": "Shots_On_Goal_60"
+    "Shots on goal/60": "Shots_On_Goal_60",
+
+    "Net xG (xG player on 0 opp. team's xG)": "Net_xG",
+
+    "xG (Expected goals)": "xG"
 })
 
 # -----------------------------------
-# CURRENT VALUE
+# CREATE CURRENT VALUE
 # -----------------------------------
 
 df["Current Value"] = (
@@ -66,9 +67,19 @@ df["Current Value"] = (
 # -----------------------------------
 
 df["Finishing Delta"] = (
-    pd.to_numeric(df["Goals"], errors="coerce").fillna(0)
+
+    pd.to_numeric(
+        df["Goals"],
+        errors="coerce"
+    ).fillna(0)
+
     -
-    pd.to_numeric(df["xG"], errors="coerce").fillna(0)
+
+    pd.to_numeric(
+        df["xG"],
+        errors="coerce"
+    ).fillna(0)
+
 ).round(2)
 
 # -----------------------------------
@@ -121,14 +132,21 @@ player_df = (
 latest = player_df.iloc[-1]
 
 # -----------------------------------
+# PLAYER INFO
+# -----------------------------------
+
+age = latest["Age"]
+team = latest["Team"]
+position = latest["Position"]
+
+current_value = latest["Current Value"]
+
+# -----------------------------------
 # WEIGHTED VALUE
 # -----------------------------------
 
-weights = [0.2, 0.3, 0.5]
-
 values = player_df["Current Value"].tolist()
 
-# Jos vähemmän kuin 3 kautta
 if len(values) == 1:
 
     weighted_value = values[-1]
@@ -136,34 +154,33 @@ if len(values) == 1:
 elif len(values) == 2:
 
     weighted_value = (
-        values[0] * 0.4
+
+        values[0] * 0.40
+
         +
-        values[1] * 0.6
+
+        values[1] * 0.60
     )
 
 else:
 
     weighted_value = (
 
-        values[-3] * 0.2
+        values[-3] * 0.20
+
         +
-        values[-2] * 0.3
+
+        values[-2] * 0.30
+
         +
-        values[-1] * 0.5
+
+        values[-1] * 0.50
     )
 
 weighted_value = round(
     weighted_value,
     2
 )
-
-# -----------------------------------
-# PLAYER INFO
-# -----------------------------------
-
-age = latest["Age"]
-team = latest["Team"]
-position = latest["Position"]
 
 # -----------------------------------
 # AGE MULTIPLIER
@@ -195,11 +212,14 @@ if len(player_df) >= 2:
     )
 
     trend_adjustment = (
+
         current_value
         - previous_value
+
     ) * 0.25
 
 else:
+
     trend_adjustment = 0
 
 # -----------------------------------
@@ -208,12 +228,10 @@ else:
 
 finishing_delta = latest["Finishing Delta"]
 
-# Aliperformannut -> pieni boost
 if finishing_delta <= -3:
 
     finishing_adjustment = 0.20
 
-# Yliperformannut -> pieni regressio
 elif finishing_delta >= 3:
 
     finishing_adjustment = -0.20
@@ -223,10 +241,8 @@ else:
     finishing_adjustment = 0
 
 # -----------------------------------
-# FINAL FUTURE VALUE
+# FUTURE VALUE
 # -----------------------------------
-
-current_value = latest["Current Value"]
 
 future_value = (
 
@@ -271,7 +287,7 @@ col3.metric(
 
 col4.metric(
     "Finishing Delta",
-    finishing_delta
+    round(finishing_delta, 2)
 )
 
 col5.metric(
@@ -296,11 +312,14 @@ st.markdown(f"""
 # -----------------------------------
 
 graph_metrics = [
+
     "Goals_60",
     "Assists_60",
     "Points_60",
     "xG_60",
+
     "Current Value",
+
     "Finishing Delta"
 ]
 
@@ -358,6 +377,7 @@ raw_columns = [
     "xG_60",
 
     "Current Value",
+
     "Finishing Delta"
 ]
 
