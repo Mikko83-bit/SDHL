@@ -22,7 +22,7 @@ df = pd.read_excel(
 )
 
 # -----------------------------------
-# RENAME IMPORTANT COLUMNS
+# RENAME COLUMNS
 # -----------------------------------
 
 df = df.rename(columns={
@@ -52,11 +52,11 @@ min_toi = st.sidebar.slider(
     "Minimum TOI Minutes",
     min_value=0,
     max_value=1000,
-    value=200,
+    value=300,
     step=25
 )
 
-# FILTER TOI
+# FILTER DATA
 
 df = df[
     df["TOI_minutes"] >= min_toi
@@ -80,7 +80,7 @@ filtered_df = df[
 ]
 
 # -----------------------------------
-# CREATE CURRENT VALUE
+# CURRENT VALUE
 # -----------------------------------
 
 df["Current Value"] = (
@@ -122,6 +122,237 @@ df["Finishing Delta"] = (
 ).round(2)
 
 # -----------------------------------
+# LEAGUE AVERAGE
+# -----------------------------------
+
+league_average = (
+    df["Current Value"]
+    .mean()
+)
+
+# -----------------------------------
+# FUTURE VALUE FUNCTION
+# -----------------------------------
+
+def calculate_future_value(player_history):
+
+    player_history = player_history.sort_values(
+        "Season"
+    )
+
+    latest = player_history.iloc[-1]
+
+    current_value = latest["Current Value"]
+
+    age = latest["Age"]
+
+    # -----------------------------------
+    # WEIGHTED VALUE
+    # -----------------------------------
+
+    values = player_history[
+        "Current Value"
+    ].tolist()
+
+    if len(values) == 1:
+
+        weighted_value = values[-1]
+
+    elif len(values) == 2:
+
+        weighted_value = (
+
+            values[0] * 0.40
+
+            +
+
+            values[1] * 0.60
+        )
+
+    else:
+
+        weighted_value = (
+
+            values[-3] * 0.20
+
+            +
+
+            values[-2] * 0.30
+
+            +
+
+            values[-1] * 0.50
+        )
+
+    # -----------------------------------
+    # AGE MULTIPLIER
+    # -----------------------------------
+
+    age_multiplier = (
+
+        1.08
+
+        -
+
+        ((age - 21) * 0.005)
+
+    )
+
+    age_multiplier = max(
+        0.95,
+        min(age_multiplier, 1.10)
+    )
+
+    # -----------------------------------
+    # TREND
+    # -----------------------------------
+
+    if len(player_history) >= 2:
+
+        previous_value = (
+            player_history.iloc[-2]["Current Value"]
+        )
+
+        trend_adjustment = (
+
+            current_value
+            - previous_value
+
+        ) * 0.15
+
+    else:
+
+        trend_adjustment = 0
+
+    # -----------------------------------
+    # FINISHING REGRESSION
+    # -----------------------------------
+
+    finishing_delta = latest[
+        "Finishing Delta"
+    ]
+
+    if finishing_delta <= -3:
+
+        finishing_adjustment = 0.10
+
+    elif finishing_delta >= 3:
+
+        finishing_adjustment = -0.10
+
+    else:
+
+        finishing_adjustment = 0
+
+    # -----------------------------------
+    # REGRESSION TO MEAN
+    # -----------------------------------
+
+    regression_strength = 0.15
+
+    regressed_value = (
+
+        weighted_value
+        * (1 - regression_strength)
+
+        +
+
+        league_average
+        * regression_strength
+    )
+
+    # -----------------------------------
+    # FUTURE VALUE
+    # -----------------------------------
+
+    future_value = (
+
+        regressed_value
+        * age_multiplier
+
+        +
+
+        trend_adjustment
+
+        +
+
+        finishing_adjustment
+    )
+
+    # -----------------------------------
+    # GROWTH CAP
+    # -----------------------------------
+
+    max_growth = (
+        current_value * 1.15
+    )
+
+    future_value = min(
+        future_value,
+        max_growth
+    )
+
+    future_value = round(
+        future_value,
+        2
+    )
+
+    return future_value
+
+# -----------------------------------
+# CALCULATE FUTURE VALUE FOR ALL
+# -----------------------------------
+
+future_values = []
+
+for player in df["Player"].unique():
+
+    player_history = (
+        df[df["Player"] == player]
+        .sort_values("Season")
+    )
+
+    future_value = calculate_future_value(
+        player_history
+    )
+
+    latest_row = player_history.iloc[-1]
+
+    future_values.append({
+
+        "Player": player,
+        "Team": latest_row["Team"],
+        "Position": latest_row["Position"],
+        "Age": latest_row["Age"],
+
+        "Current Value": latest_row["Current Value"],
+
+        "Future Value": future_value,
+
+        "Growth Potential": round(
+            future_value
+            - latest_row["Current Value"],
+            2
+        ),
+
+        "Finishing Delta": latest_row[
+            "Finishing Delta"
+        ],
+
+        "TOI_minutes": latest_row[
+            "TOI_minutes"
+        ]
+    })
+
+# -----------------------------------
+# FUTURE VALUE DATAFRAME
+# -----------------------------------
+
+projection_df = pd.DataFrame(
+    future_values
+)
+
+# -----------------------------------
 # PLAYER FILTER
 # -----------------------------------
 
@@ -148,174 +379,16 @@ player_df = (
 latest = player_df.iloc[-1]
 
 # -----------------------------------
-# PLAYER INFO
+# PLAYER PROJECTION
 # -----------------------------------
 
-age = latest["Age"]
-team = latest["Team"]
-position = latest["Position"]
-
-current_value = latest["Current Value"]
-
-# -----------------------------------
-# WEIGHTED VALUE
-# -----------------------------------
-
-values = player_df["Current Value"].tolist()
-
-if len(values) == 1:
-
-    weighted_value = values[-1]
-
-elif len(values) == 2:
-
-    weighted_value = (
-
-        values[0] * 0.40
-
-        +
-
-        values[1] * 0.60
-    )
-
-else:
-
-    weighted_value = (
-
-        values[-3] * 0.20
-
-        +
-
-        values[-2] * 0.30
-
-        +
-
-        values[-1] * 0.50
-    )
-
-weighted_value = round(
-    weighted_value,
-    2
-)
+player_projection = projection_df[
+    projection_df["Player"]
+    == selected_player
+].iloc[0]
 
 # -----------------------------------
-# SMOOTH AGE MULTIPLIER
-# -----------------------------------
-
-age_multiplier = (
-
-    1.08
-
-    -
-
-    ((age - 21) * 0.005)
-
-)
-
-age_multiplier = max(
-    0.95,
-    min(age_multiplier, 1.10)
-)
-
-# -----------------------------------
-# TREND ADJUSTMENT
-# -----------------------------------
-
-if len(player_df) >= 2:
-
-    previous_value = (
-        player_df.iloc[-2]["Current Value"]
-    )
-
-    trend_adjustment = (
-
-        current_value
-        - previous_value
-
-    ) * 0.15
-
-else:
-
-    trend_adjustment = 0
-
-# -----------------------------------
-# FINISHING REGRESSION
-# -----------------------------------
-
-finishing_delta = latest["Finishing Delta"]
-
-if finishing_delta <= -3:
-
-    finishing_adjustment = 0.10
-
-elif finishing_delta >= 3:
-
-    finishing_adjustment = -0.10
-
-else:
-
-    finishing_adjustment = 0
-
-# -----------------------------------
-# REGRESSION TO MEAN
-# -----------------------------------
-
-league_average = (
-    df["Current Value"]
-    .mean()
-)
-
-regression_strength = 0.15
-
-regressed_value = (
-
-    weighted_value * (1 - regression_strength)
-
-    +
-
-    league_average * regression_strength
-)
-
-# -----------------------------------
-# FUTURE VALUE
-# -----------------------------------
-
-future_value = (
-
-    regressed_value
-    * age_multiplier
-
-    +
-
-    trend_adjustment
-
-    +
-
-    finishing_adjustment
-)
-
-# -----------------------------------
-# CAP EXTREME GROWTH
-# -----------------------------------
-
-max_growth = current_value * 1.15
-
-future_value = min(
-    future_value,
-    max_growth
-)
-
-# -----------------------------------
-# ROUND
-# -----------------------------------
-
-future_value = round(
-    future_value,
-    2
-)
-
-# -----------------------------------
-# CONFIDENCE LEVEL
+# CONFIDENCE
 # -----------------------------------
 
 toi = latest["TOI_minutes"]
@@ -337,27 +410,27 @@ col1, col2, col3, col4, col5, col6 = st.columns(6)
 
 col1.metric(
     "Current Value",
-    round(current_value, 2)
+    player_projection["Current Value"]
 )
 
 col2.metric(
-    "Weighted Value",
-    weighted_value
+    "Projected Future Value",
+    player_projection["Future Value"]
 )
 
 col3.metric(
-    "Projected Future Value",
-    future_value
+    "Growth Potential",
+    player_projection["Growth Potential"]
 )
 
 col4.metric(
     "Finishing Delta",
-    round(finishing_delta, 2)
+    player_projection["Finishing Delta"]
 )
 
 col5.metric(
     "Age",
-    age
+    player_projection["Age"]
 )
 
 col6.metric(
@@ -372,8 +445,8 @@ col6.metric(
 st.markdown(f"""
 ### Player Information
 
-- **Current Team:** {team}
-- **Position:** {position}
+- **Current Team:** {latest['Team']}
+- **Position:** {latest['Position']}
 - **Latest Season:** {latest['Season']}
 - **TOI Minutes:** {round(toi, 1)}
 """)
@@ -418,6 +491,56 @@ st.plotly_chart(
     fig,
     use_container_width=True
 )
+
+# -----------------------------------
+# MARKET DISCOVERY
+# -----------------------------------
+
+st.header("🔍 Market Discovery (Scouting)")
+
+col_up, col_down = st.columns(2)
+
+with col_up:
+
+    st.subheader("🚀 Top Breakout Candidates")
+
+    top_growth = projection_df.sort_values(
+        "Growth Potential",
+        ascending=False
+    ).head(10)
+
+    st.dataframe(
+        top_growth[[
+            "Player",
+            "Team",
+            "Age",
+            "Current Value",
+            "Future Value",
+            "Growth Potential"
+        ]],
+        use_container_width=True
+    )
+
+with col_down:
+
+    st.subheader("⚠️ Regression Risks")
+
+    top_decline = projection_df.sort_values(
+        "Growth Potential",
+        ascending=True
+    ).head(10)
+
+    st.dataframe(
+        top_decline[[
+            "Player",
+            "Team",
+            "Age",
+            "Current Value",
+            "Future Value",
+            "Growth Potential"
+        ]],
+        use_container_width=True
+    )
 
 # -----------------------------------
 # RAW DATA
