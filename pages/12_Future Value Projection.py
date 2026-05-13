@@ -41,6 +41,45 @@ df = df.rename(columns={
 })
 
 # -----------------------------------
+# TOI FILTER
+# -----------------------------------
+
+st.sidebar.header("Filters")
+
+min_toi = st.sidebar.slider(
+    "Minimum TOI Minutes",
+    min_value=0,
+    max_value=1000,
+    value=200,
+    step=25
+)
+
+# FILTER MINIMUM TOI
+
+df = df[
+    df["TOI_minutes"] >= min_toi
+]
+
+# -----------------------------------
+# POSITION FILTER
+# -----------------------------------
+
+positions = sorted(
+    df["Position"]
+    .dropna()
+    .unique()
+)
+
+selected_position = st.sidebar.selectbox(
+    "Select Position",
+    positions
+)
+
+filtered_df = df[
+    df["Position"] == selected_position
+]
+
+# -----------------------------------
 # CREATE CURRENT VALUE
 # -----------------------------------
 
@@ -83,31 +122,8 @@ df["Finishing Delta"] = (
 ).round(2)
 
 # -----------------------------------
-# SIDEBAR
-# -----------------------------------
-
-st.sidebar.header("Filters")
-
-# POSITION FILTER
-
-positions = sorted(
-    df["Position"]
-    .dropna()
-    .unique()
-)
-
-selected_position = st.sidebar.selectbox(
-    "Select Position",
-    positions
-)
-
-# FILTER POSITION
-
-filtered_df = df[
-    df["Position"] == selected_position
-]
-
 # PLAYER FILTER
+# -----------------------------------
 
 players = sorted(
     filtered_df["Player"]
@@ -183,23 +199,21 @@ weighted_value = round(
 )
 
 # -----------------------------------
-# AGE MULTIPLIER
+# SMOOTH AGE MULTIPLIER
 # -----------------------------------
 
-if age <= 21:
-    age_multiplier = 1.20
+age_multiplier = (
+    1.20
+    -
+    ((age - 21) * 0.015)
+)
 
-elif age <= 24:
-    age_multiplier = 1.12
+# LIMITS
 
-elif age <= 27:
-    age_multiplier = 1.05
-
-elif age <= 30:
-    age_multiplier = 1.00
-
-else:
-    age_multiplier = 0.92
+age_multiplier = max(
+    0.90,
+    min(age_multiplier, 1.25)
+)
 
 # -----------------------------------
 # TREND ADJUSTMENT
@@ -265,10 +279,25 @@ future_value = round(
 )
 
 # -----------------------------------
+# CONFIDENCE LEVEL
+# -----------------------------------
+
+toi = latest["TOI_minutes"]
+
+if toi >= 700:
+    confidence = "High"
+
+elif toi >= 400:
+    confidence = "Medium"
+
+else:
+    confidence = "Low"
+
+# -----------------------------------
 # METRICS
 # -----------------------------------
 
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 
 col1.metric(
     "Current Value",
@@ -295,6 +324,11 @@ col5.metric(
     age
 )
 
+col6.metric(
+    "Projection Confidence",
+    confidence
+)
+
 # -----------------------------------
 # PLAYER INFO
 # -----------------------------------
@@ -305,6 +339,7 @@ st.markdown(f"""
 - **Current Team:** {team}
 - **Position:** {position}
 - **Latest Season:** {latest['Season']}
+- **TOI Minutes:** {round(toi, 1)}
 """)
 
 # -----------------------------------
@@ -338,7 +373,8 @@ fig = px.line(
     hover_data=[
         "Team",
         "Age",
-        "Games played"
+        "Games played",
+        "TOI_minutes"
     ]
 )
 
@@ -360,7 +396,7 @@ raw_columns = [
     "Age",
 
     "Games played",
-    "Time on ice",
+    "TOI_minutes",
 
     "Goals",
     "Assists",
