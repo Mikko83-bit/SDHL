@@ -22,7 +22,7 @@ df = pd.read_excel(
 )
 
 # -----------------------------------
-# RENAME COLUMNS
+# RENAME IMPORTANT COLUMNS
 # -----------------------------------
 
 df = df.rename(columns={
@@ -61,34 +61,34 @@ df["Current Value"] = (
 ).round(2)
 
 # -----------------------------------
-# SIDEBAR FILTERS
+# SIDEBAR
 # -----------------------------------
 
 st.sidebar.header("Filters")
 
-# TEAM FILTER
+# POSITION FILTER
 
-teams = sorted(
-    df["Team"]
+positions = sorted(
+    df["Position"]
     .dropna()
     .unique()
 )
 
-selected_team = st.sidebar.selectbox(
-    "Select Team",
-    teams
+selected_position = st.sidebar.selectbox(
+    "Select Position",
+    positions
 )
 
-# FILTER TEAM DATA
+# FILTER POSITION
 
-team_df = df[
-    df["Team"] == selected_team
+filtered_df = df[
+    df["Position"] == selected_position
 ]
 
 # PLAYER FILTER
 
 players = sorted(
-    team_df["Player"]
+    filtered_df["Player"]
     .dropna()
     .unique()
 )
@@ -103,9 +103,7 @@ selected_player = st.sidebar.selectbox(
 # -----------------------------------
 
 player_df = (
-    team_df[
-        team_df["Player"] == selected_player
-    ]
+    df[df["Player"] == selected_player]
     .sort_values("Season")
 )
 
@@ -205,7 +203,7 @@ col4.metric(
 st.markdown(f"""
 ### Player Information
 
-- **Team:** {team}
+- **Current Team:** {team}
 - **Position:** {position}
 - **Latest Season:** {latest['Season']}
 """)
@@ -231,8 +229,14 @@ fig = px.line(
     player_df,
     x="Season",
     y=metric_choice,
+    color="Team",
     markers=True,
-    title=f"{selected_player} — {metric_choice}"
+    title=f"{selected_player} — {metric_choice}",
+    hover_data=[
+        "Team",
+        "Age",
+        "Games played"
+    ]
 )
 
 st.plotly_chart(
@@ -241,7 +245,7 @@ st.plotly_chart(
 )
 
 # -----------------------------------
-# RAW DATA SECTION
+# RAW DATA
 # -----------------------------------
 
 st.subheader("Raw Data Behind Projection")
@@ -249,7 +253,9 @@ st.subheader("Raw Data Behind Projection")
 raw_columns = [
 
     "Season",
+    "Team",
     "Age",
+
     "Games played",
     "Time on ice",
 
@@ -270,12 +276,12 @@ raw_columns = [
     "Current Value"
 ]
 
-available_raw_columns = [
+available_columns = [
     c for c in raw_columns
     if c in player_df.columns
 ]
 
 st.dataframe(
-    player_df[available_raw_columns],
+    player_df[available_columns],
     use_container_width=True
 )
