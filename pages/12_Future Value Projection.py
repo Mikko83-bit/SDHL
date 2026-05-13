@@ -280,7 +280,7 @@ def calculate_future_value(player_history):
     )
 
     # -----------------------------------
-    # GROWTH CAP
+    # CAP EXTREME GROWTH
     # -----------------------------------
 
     max_growth = (
@@ -345,12 +345,110 @@ for player in df["Player"].unique():
     })
 
 # -----------------------------------
-# FUTURE VALUE DATAFRAME
+# PROJECTION DATAFRAME
 # -----------------------------------
 
 projection_df = pd.DataFrame(
     future_values
 )
+
+# -----------------------------------
+# MERGE FUTURE VALUE BACK TO DF
+# -----------------------------------
+
+df = df.merge(
+
+    projection_df[[
+        "Player",
+        "Future Value",
+        "Growth Potential"
+    ]],
+
+    on="Player",
+
+    how="left"
+)
+
+# -----------------------------------
+# PERCENTILES
+# FORWARDS & DEFENDERS SEPARATELY
+# -----------------------------------
+
+forwards = df[
+    df["Position"] == "F"
+].copy()
+
+defenders = df[
+    df["Position"] == "D"
+].copy()
+
+# -----------------------------------
+# FORWARD PERCENTILES
+# -----------------------------------
+
+forward_metrics = [
+
+    "Goals_60",
+    "Assists_60",
+    "Points_60",
+    "xG_60",
+
+    "Current Value",
+
+    "Future Value",
+
+    "Growth Potential"
+]
+
+for metric in forward_metrics:
+
+    forwards[f"{metric} Percentile"] = (
+
+        forwards[metric]
+        .rank(pct=True)
+
+        * 100
+
+    ).round(1)
+
+# -----------------------------------
+# DEFENDER PERCENTILES
+# -----------------------------------
+
+defender_metrics = [
+
+    "Current Value",
+
+    "Future Value",
+
+    "Growth Potential",
+
+    "Net_xG",
+
+    "Takeaways/60",
+
+    "Blocked shots/60"
+]
+
+for metric in defender_metrics:
+
+    defenders[f"{metric} Percentile"] = (
+
+        defenders[metric]
+        .rank(pct=True)
+
+        * 100
+
+    ).round(1)
+
+# -----------------------------------
+# COMBINE BACK
+# -----------------------------------
+
+df = pd.concat([
+    forwards,
+    defenders
+])
 
 # -----------------------------------
 # PLAYER FILTER
@@ -403,7 +501,7 @@ else:
     confidence = "Low"
 
 # -----------------------------------
-# METRICS
+# MAIN METRICS
 # -----------------------------------
 
 col1, col2, col3, col4, col5, col6 = st.columns(6)
@@ -436,6 +534,49 @@ col5.metric(
 col6.metric(
     "Projection Confidence",
     confidence
+)
+
+# -----------------------------------
+# PERCENTILES
+# -----------------------------------
+
+st.subheader("📊 Percentile Rankings")
+
+p1, p2, p3 = st.columns(3)
+
+p1.metric(
+    "Current Value Percentile",
+    f"{latest['Current Value Percentile']}th"
+)
+
+p2.metric(
+    "Future Value Percentile",
+    f"{latest['Future Value Percentile']}th"
+)
+
+p3.metric(
+    "Growth Potential Percentile",
+    f"{latest['Growth Potential Percentile']}th"
+)
+
+# -----------------------------------
+# PERCENTILE BARS
+# -----------------------------------
+
+st.progress(
+    latest["Current Value Percentile"] / 100
+)
+
+st.caption(
+    "Current Value Percentile"
+)
+
+st.progress(
+    latest["Future Value Percentile"] / 100
+)
+
+st.caption(
+    "Future Value Percentile"
 )
 
 # -----------------------------------
@@ -572,6 +713,10 @@ raw_columns = [
     "xG_60",
 
     "Current Value",
+
+    "Future Value",
+
+    "Growth Potential",
 
     "Finishing Delta"
 ]
