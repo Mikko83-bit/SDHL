@@ -119,26 +119,26 @@ team = latest["Team"]
 position = latest["Position"]
 
 # -----------------------------------
-# AGE BONUS
+# AGE MULTIPLIER
 # -----------------------------------
 
 if age <= 21:
-    age_bonus = 8
+    age_multiplier = 1.20
 
 elif age <= 24:
-    age_bonus = 5
+    age_multiplier = 1.12
 
 elif age <= 27:
-    age_bonus = 2
+    age_multiplier = 1.05
 
 elif age <= 30:
-    age_bonus = 0
+    age_multiplier = 1.00
 
 else:
-    age_bonus = -4
+    age_multiplier = 0.92
 
 # -----------------------------------
-# TREND BONUS
+# TREND ADJUSTMENT
 # -----------------------------------
 
 if len(player_df) >= 2:
@@ -147,27 +147,27 @@ if len(player_df) >= 2:
         player_df.iloc[-2]["Current Value"]
     )
 
-    trend_bonus = (
+    trend_adjustment = (
         current_value
         - previous_value
-    ) * 2
+    ) * 0.25
 
 else:
-    trend_bonus = 0
+    trend_adjustment = 0
 
 # -----------------------------------
-# FINAL PROJECTION
+# FUTURE VALUE
 # -----------------------------------
 
 future_value = (
     current_value
-    + age_bonus
-    + trend_bonus
+    * age_multiplier
+    + trend_adjustment
 )
 
 future_value = round(
     future_value,
-    1
+    2
 )
 
 # -----------------------------------
@@ -178,7 +178,7 @@ col1, col2, col3, col4 = st.columns(4)
 
 col1.metric(
     "Current Value",
-    round(current_value, 1)
+    round(current_value, 2)
 )
 
 col2.metric(
@@ -192,8 +192,8 @@ col3.metric(
 )
 
 col4.metric(
-    "Trend Bonus",
-    round(trend_bonus, 1)
+    "Trend Adjustment",
+    round(trend_adjustment, 2)
 )
 
 # -----------------------------------
