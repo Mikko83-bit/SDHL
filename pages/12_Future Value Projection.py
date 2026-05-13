@@ -280,7 +280,7 @@ def calculate_future_value(player_history):
     )
 
     # -----------------------------------
-    # CAP EXTREME GROWTH
+    # GROWTH CAP
     # -----------------------------------
 
     max_growth = (
@@ -341,6 +341,10 @@ for player in df["Player"].unique():
 
         "TOI_minutes": latest_row[
             "TOI_minutes"
+        ],
+
+        "Season": latest_row[
+            "Season"
         ]
     })
 
@@ -353,7 +357,7 @@ projection_df = pd.DataFrame(
 )
 
 # -----------------------------------
-# MERGE FUTURE VALUE BACK TO DF
+# MERGE BACK TO DF
 # -----------------------------------
 
 df = df.merge(
@@ -371,15 +375,27 @@ df = df.merge(
 
 # -----------------------------------
 # PERCENTILES
-# FORWARDS & DEFENDERS SEPARATELY
+# ONLY LATEST SEASON
 # -----------------------------------
 
-forwards = df[
-    df["Position"] == "F"
+latest_season = (
+    df["Season"].max()
+)
+
+percentile_df = df[
+    df["Season"] == latest_season
 ].copy()
 
-defenders = df[
-    df["Position"] == "D"
+# -----------------------------------
+# SPLIT POSITIONS
+# -----------------------------------
+
+forwards = percentile_df[
+    percentile_df["Position"] == "F"
+].copy()
+
+defenders = percentile_df[
+    percentile_df["Position"] == "D"
 ].copy()
 
 # -----------------------------------
@@ -442,10 +458,10 @@ for metric in defender_metrics:
     ).round(1)
 
 # -----------------------------------
-# COMBINE BACK
+# COMBINE PERCENTILE DATA
 # -----------------------------------
 
-df = pd.concat([
+percentile_df = pd.concat([
     forwards,
     defenders
 ])
@@ -484,6 +500,26 @@ player_projection = projection_df[
     projection_df["Player"]
     == selected_player
 ].iloc[0]
+
+# -----------------------------------
+# PLAYER PERCENTILES
+# -----------------------------------
+
+player_percentiles = percentile_df[
+    percentile_df["Player"]
+    == selected_player
+]
+
+# If player not found in latest season
+if len(player_percentiles) > 0:
+
+    player_percentiles = (
+        player_percentiles.iloc[-1]
+    )
+
+else:
+
+    player_percentiles = latest
 
 # -----------------------------------
 # CONFIDENCE
@@ -546,17 +582,17 @@ p1, p2, p3 = st.columns(3)
 
 p1.metric(
     "Current Value Percentile",
-    f"{latest['Current Value Percentile']}th"
+    f"{player_percentiles['Current Value Percentile']}th"
 )
 
 p2.metric(
     "Future Value Percentile",
-    f"{latest['Future Value Percentile']}th"
+    f"{player_percentiles['Future Value Percentile']}th"
 )
 
 p3.metric(
     "Growth Potential Percentile",
-    f"{latest['Growth Potential Percentile']}th"
+    f"{player_percentiles['Growth Potential Percentile']}th"
 )
 
 # -----------------------------------
@@ -564,7 +600,9 @@ p3.metric(
 # -----------------------------------
 
 st.progress(
-    latest["Current Value Percentile"] / 100
+    player_percentiles[
+        "Current Value Percentile"
+    ] / 100
 )
 
 st.caption(
@@ -572,7 +610,9 @@ st.caption(
 )
 
 st.progress(
-    latest["Future Value Percentile"] / 100
+    player_percentiles[
+        "Future Value Percentile"
+    ] / 100
 )
 
 st.caption(
