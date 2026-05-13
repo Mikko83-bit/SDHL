@@ -22,7 +22,7 @@ df = pd.read_excel(
 )
 
 # -----------------------------------
-# RENAME IMPORTANT COLUMNS
+# RENAME COLUMNS
 # -----------------------------------
 
 df = df.rename(columns={
@@ -32,10 +32,10 @@ df = df.rename(columns={
     "Points/60": "Points_60",
     "xG (Expected goals)/60": "xG_60",
 
-    "Net xG (xG player on 0 opp. team's xG)": "Net_xG",
-
     "Shots/60": "Shots_60",
-    "Shots on goal/60": "Shots_On_Goal_60"
+    "Shots on goal/60": "Shots_On_Goal_60",
+
+    "Net xG (xG player on 0 opp. team's xG)": "Net_xG"
 })
 
 # -----------------------------------
@@ -61,16 +61,39 @@ df["Current Value"] = (
 ).round(2)
 
 # -----------------------------------
-# PLAYER SELECT
+# SIDEBAR FILTERS
 # -----------------------------------
 
-players = sorted(
-    df["Player"]
+st.sidebar.header("Filters")
+
+# TEAM FILTER
+
+teams = sorted(
+    df["Team"]
     .dropna()
     .unique()
 )
 
-selected_player = st.selectbox(
+selected_team = st.sidebar.selectbox(
+    "Select Team",
+    teams
+)
+
+# FILTER TEAM DATA
+
+team_df = df[
+    df["Team"] == selected_team
+]
+
+# PLAYER FILTER
+
+players = sorted(
+    team_df["Player"]
+    .dropna()
+    .unique()
+)
+
+selected_player = st.sidebar.selectbox(
     "Select Player",
     players
 )
@@ -80,7 +103,9 @@ selected_player = st.selectbox(
 # -----------------------------------
 
 player_df = (
-    df[df["Player"] == selected_player]
+    team_df[
+        team_df["Player"] == selected_player
+    ]
     .sort_values("Season")
 )
 
@@ -216,12 +241,41 @@ st.plotly_chart(
 )
 
 # -----------------------------------
-# PLAYER DATA TABLE
+# RAW DATA SECTION
 # -----------------------------------
 
-st.subheader("Season Data")
+st.subheader("Raw Data Behind Projection")
+
+raw_columns = [
+
+    "Season",
+    "Age",
+    "Games played",
+    "Time on ice",
+
+    "Goals",
+    "Assists",
+    "Points",
+
+    "Shots",
+    "Shots on goal",
+
+    "xG (Expected goals)",
+
+    "Goals_60",
+    "Assists_60",
+    "Points_60",
+    "xG_60",
+
+    "Current Value"
+]
+
+available_raw_columns = [
+    c for c in raw_columns
+    if c in player_df.columns
+]
 
 st.dataframe(
-    player_df,
+    player_df[available_raw_columns],
     use_container_width=True
 )
