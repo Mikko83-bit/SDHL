@@ -30,7 +30,7 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN
+# CLEAN COLUMNS
 # ==================================================
 
 df.columns = df.columns.str.strip()
@@ -48,7 +48,33 @@ df["Team"] = (
 )
 
 # ==================================================
-# NUMERIC
+# CREATE AGE
+# ==================================================
+
+df["Date of birth"] = pd.to_datetime(
+    df["Date of birth"],
+    errors="coerce"
+)
+
+current_year = 2026
+
+df["Age"] = (
+
+    current_year
+
+    -
+
+    df["Date of birth"].dt.year
+
+)
+
+df["Age"] = pd.to_numeric(
+    df["Age"],
+    errors="coerce"
+)
+
+# ==================================================
+# NUMERIC COLUMNS
 # ==================================================
 
 numeric_cols = [
@@ -56,6 +82,10 @@ numeric_cols = [
     "Age",
     "Time on ice",
     "Games played",
+
+    "Goals",
+    "Assists",
+    "Points",
 
     "Goals/60",
     "Assists/60",
@@ -77,7 +107,6 @@ numeric_cols = [
 
     "Net xG (xG player on - opp. team's xG)",
 
-    "Goals",
     "xG (Expected goals)"
 
 ]
@@ -175,10 +204,10 @@ for metric in percentile_metrics:
 
         * 100
 
-    )
+    ).round(1)
 
 # ==================================================
-# GEM SCORE
+# UNDERLYING SCORE
 # ==================================================
 
 filtered_df["Underlying Score"] = (
@@ -213,6 +242,10 @@ filtered_df["Underlying Score"] = (
 
 )
 
+# ==================================================
+# PRODUCTION SCORE
+# ==================================================
+
 filtered_df["Production Score"] = (
 
     filtered_df[
@@ -226,6 +259,10 @@ filtered_df["Production Score"] = (
     ] * 0.50
 
 )
+
+# ==================================================
+# GEM SCORE
+# ==================================================
 
 filtered_df["Gem Score"] = (
 
@@ -261,7 +298,9 @@ filtered_df["Breakout Score"] = (
 
     +
 
-    filtered_df["Impact Score Percentile"] * 0.20
+    filtered_df[
+        "Impact Score Percentile"
+    ] * 0.20
 
     +
 
@@ -340,13 +379,13 @@ def why_player(row):
         reasons.append("High xG creation")
 
     if row["Transition Score Percentile"] >= 80:
-        reasons.append("Strong transition game")
+        reasons.append("Strong transition")
 
     if row["Impact Score Percentile"] >= 80:
         reasons.append("Drives team impact")
 
     if row["Points/60 Percentile"] <= 40:
-        reasons.append("Low production vs underlying")
+        reasons.append("Low production vs process")
 
     return " | ".join(reasons)
 
@@ -517,7 +556,7 @@ st.dataframe(
 )
 
 # ==================================================
-# RAW DATABASE
+# FULL DATABASE
 # ==================================================
 
 st.markdown("---")
