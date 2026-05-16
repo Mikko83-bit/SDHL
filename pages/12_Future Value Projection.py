@@ -23,10 +23,10 @@ Predicts which players are most likely to break out offensively.
 Model uses:
 - Multi-season weighted data
 - Underlying metrics
-- Age curve
 - Transition impact
 - Shot generation
-- xG trends
+- xG profile
+- Age curve
 """)
 
 # ==================================================
@@ -38,10 +38,14 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN DATA
+# CLEAN COLUMNS
 # ==================================================
 
 df.columns = df.columns.str.strip()
+
+# ==================================================
+# CLEAN TEXT COLUMNS
+# ==================================================
 
 text_cols = [
     "Player",
@@ -164,11 +168,13 @@ season_weights = {
 # FILTER SEASONS
 # ==================================================
 
-df = df[
-    df["Season"].isin(
-        season_weights.keys()
-    )
-]
+if "Season" in df.columns:
+
+    df = df[
+        df["Season"].isin(
+            season_weights.keys()
+        )
+    ]
 
 # ==================================================
 # APPLY WEIGHTS
@@ -198,6 +204,8 @@ weighted_metrics = [
 
 ]
 
+# KEEP ONLY EXISTING METRICS
+
 weighted_metrics = [
 
     metric for metric in weighted_metrics
@@ -214,7 +222,10 @@ for metric in weighted_metrics:
 
     df[f"Weighted {metric}"] = (
 
-        df[metric]
+        pd.to_numeric(
+            df[metric],
+            errors="coerce"
+        )
 
         *
 
@@ -243,7 +254,9 @@ for metric in weighted_metrics:
         f"Weighted {metric}"
     ] = "sum"
 
-agg_dict["Time on ice"] = "sum"
+if "Time on ice" in df.columns:
+
+    agg_dict["Time on ice"] = "sum"
 
 player_df = df.groupby(
     group_cols,
@@ -279,10 +292,24 @@ player_df = player_df[
 ]
 
 # ==================================================
-# FILTERS
+# ROUND NUMBERS
+# ==================================================
+
+numeric_cols = player_df.select_dtypes(
+    include="number"
+).columns
+
+player_df[numeric_cols] = player_df[
+    numeric_cols
+].round(2)
+
+# ==================================================
+# SIDEBAR FILTERS
 # ==================================================
 
 st.sidebar.header("Filters")
+
+# POSITION
 
 positions = sorted(
     player_df["Position"]
@@ -300,7 +327,7 @@ filtered_df = player_df[
     == selected_position
 ]
 
-# TOI FILTER
+# MIN TOI
 
 min_toi = st.sidebar.slider(
     "Minimum TOI",
@@ -310,10 +337,12 @@ min_toi = st.sidebar.slider(
     step=50
 )
 
-filtered_df = filtered_df[
-    filtered_df["Time on ice"]
-    >= min_toi
-]
+if "Time on ice" in filtered_df.columns:
+
+    filtered_df = filtered_df[
+        filtered_df["Time on ice"]
+        >= min_toi
+    ]
 
 # AGE FILTER
 
@@ -335,7 +364,7 @@ filtered_df = filtered_df[
 ]
 
 # ==================================================
-# CREATE PERCENTILES
+# PERCENTILES
 # ==================================================
 
 percentile_metrics = [
@@ -352,20 +381,44 @@ percentile_metrics = [
 
 ]
 
+# KEEP ONLY EXISTING
+
+existing_percentile_metrics = []
+
 for metric in percentile_metrics:
 
     if metric in filtered_df.columns:
 
-        filtered_df[
-            f"{metric} Percentile"
-        ] = (
+        existing_percentile_metrics.append(metric)
 
-            filtered_df[metric]
-            .rank(pct=True)
+# ==================================================
+# CREATE PERCENTILES
+# ==================================================
 
-            * 100
+for metric in existing_percentile_metrics:
 
-        )
+    filtered_df[
+        f"{metric} Percentile"
+    ] = (
+
+        filtered_df[metric]
+        .rank(pct=True)
+
+        * 100
+
+    )
+
+# ==================================================
+# SAFE COLUMN FUNCTION
+# ==================================================
+
+def safe_col(col_name):
+
+    if col_name in filtered_df.columns:
+
+        return filtered_df[col_name]
+
+    return 0
 
 # ==================================================
 # AGE CURVE SCORE
@@ -394,39 +447,39 @@ filtered_df["Age Curve Score"] = np.where(
 
 filtered_df["Breakout Probability"] = (
 
-    filtered_df[
+    safe_col(
         "xG (Expected goals)/60 Percentile"
-    ] * 0.25
+    ) * 0.25
 
     +
 
-    filtered_df[
+    safe_col(
         "Shots/60 Percentile"
-    ] * 0.20
+    ) * 0.20
 
     +
 
-    filtered_df[
+    safe_col(
         "Transition Score Percentile"
-    ] * 0.15
+    ) * 0.15
 
     +
 
-    filtered_df[
+    safe_col(
         "Impact Score Percentile"
-    ] * 0.15
+    ) * 0.15
 
     +
 
-    filtered_df[
+    safe_col(
         "Playmaking Score Percentile"
-    ] * 0.10
+    ) * 0.10
 
     +
 
-    filtered_df[
+    safe_col(
         "Scoring chances - total/60 Percentile"
-    ] * 0.05
+    ) * 0.05
 
     +
 
@@ -447,7 +500,7 @@ filtered_df["Breakout Probability"] = (
 )
 
 # ==================================================
-# BUILD REASON
+# BREAKOUT REASON
 # ==================================================
 
 def breakout_reason(row):
@@ -621,27 +674,43 @@ for _, row in top_breakouts.iterrows():
 
 st.markdown("---")
 
-st.subheader("📋 Model Output")
+st.subheader("📋 Full Model Output")
+
+display_columns = [
+
+    "Player",
+    "Team",
+    "Age",
+
+    "Breakout Probability",
+
+    "Points/60",
+    "Shots/60",
+
+    "xG (Expected goals)/60",
+
+    "Transition Score",
+    "Impact Score",
+
+    "Why"
+
+]
+
+# KEEP ONLY EXISTING DISPLAY COLS
+
+display_columns = [
+
+    col for col in display_columns
+
+    if col in filtered_df.columns
+
+]
 
 st.dataframe(
 
-    filtered_df[[
-        "Player",
-        "Team",
-        "Age",
-
-        "Breakout Probability",
-
-        "Points/60",
-        "Shots/60",
-
-        "xG (Expected goals)/60",
-
-        "Transition Score",
-        "Impact Score",
-
-        "Why"
-    ]],
+    filtered_df[
+        display_columns
+    ],
 
     use_container_width=True,
     hide_index=True,
