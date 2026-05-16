@@ -11,10 +11,11 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🔎 Market Discovery (Scouting)")
+st.title("🔎 Market Discovery")
 
 st.markdown("""
-Find:
+Analytics scouting dashboard for:
+
 - 🚀 Breakout Candidates
 - 💎 Hidden Gems
 - ⚠️ Regression Risks
@@ -30,7 +31,7 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN COLUMNS
+# CLEAN DATA
 # ==================================================
 
 df.columns = df.columns.str.strip()
@@ -68,13 +69,24 @@ df["Age"] = (
 
 )
 
-df["Age"] = pd.to_numeric(
-    df["Age"],
-    errors="coerce"
-)
+# ==================================================
+# CREATE POINTS/60
+# ==================================================
+
+if "Points/60" not in df.columns:
+
+    df["Points/60"] = (
+
+        df["Goals/60"]
+
+        +
+
+        df["Assists/60"]
+
+    )
 
 # ==================================================
-# NUMERIC COLUMNS
+# NUMERIC CONVERSION
 # ==================================================
 
 numeric_cols = [
@@ -121,7 +133,19 @@ for col in numeric_cols:
         )
 
 # ==================================================
-# SIDEBAR
+# ROUNDING
+# ==================================================
+
+number_cols = df.select_dtypes(
+    include="number"
+).columns
+
+df[number_cols] = df[
+    number_cols
+].round(2)
+
+# ==================================================
+# SIDEBAR FILTERS
 # ==================================================
 
 st.sidebar.header("Filters")
@@ -175,7 +199,7 @@ filtered_df = filtered_df[
 ]
 
 # ==================================================
-# PERCENTILES
+# PERCENTILE METRICS
 # ==================================================
 
 percentile_metrics = [
@@ -187,13 +211,30 @@ percentile_metrics = [
     "xG (Expected goals)/60",
     "Scoring chances - total/60",
 
-    "Transition Score",
-    "Impact Score",
+    "Shooting Score",
     "Playmaking Score",
+    "Transition Score",
+    "Puck Movement Score",
+    "Defense Score",
+    "Impact Score",
 
     "Overall Score"
 
 ]
+
+# KEEP ONLY EXISTING
+
+percentile_metrics = [
+
+    m for m in percentile_metrics
+
+    if m in filtered_df.columns
+
+]
+
+# ==================================================
+# CREATE PERCENTILES
+# ==================================================
 
 for metric in percentile_metrics:
 
@@ -240,7 +281,7 @@ filtered_df["Underlying Score"] = (
         "Impact Score Percentile"
     ] * 0.15
 
-)
+).round(2)
 
 # ==================================================
 # PRODUCTION SCORE
@@ -258,7 +299,7 @@ filtered_df["Production Score"] = (
         "Points/60 Percentile"
     ] * 0.50
 
-)
+).round(2)
 
 # ==================================================
 # GEM SCORE
@@ -382,7 +423,7 @@ def why_player(row):
         reasons.append("Strong transition")
 
     if row["Impact Score Percentile"] >= 80:
-        reasons.append("Drives team impact")
+        reasons.append("Drives impact")
 
     if row["Points/60 Percentile"] <= 40:
         reasons.append("Low production vs process")
@@ -400,7 +441,7 @@ filtered_df["Why"] = filtered_df.apply(
 
 st.markdown("---")
 
-st.subheader("🚀 Top Breakout Candidates")
+st.subheader("🚀 Breakout Candidates")
 
 breakout_df = filtered_df.sort_values(
     by="Breakout Score",
