@@ -7,9 +7,13 @@ import numpy as np
 # ==================================================
 
 st.set_page_config(
-    page_title="Market Discovery 3-Year Model",
+    page_title="Market Discovery",
     layout="wide"
 )
+
+# ==================================================
+# TITLE
+# ==================================================
 
 st.title("🔎 Market Discovery (3-Year Weighted Model)")
 
@@ -27,7 +31,7 @@ Weights:
 # ==================================================
 
 df = pd.read_excel(
-    "Sdhl_2023_2026_complete (1).xlsx"
+    "Sdhl_2023_2026_complete.xlsx"
 )
 
 # ==================================================
@@ -35,10 +39,6 @@ df = pd.read_excel(
 # ==================================================
 
 df.columns = df.columns.str.strip()
-
-# ==================================================
-# CLEAN TEXT
-# ==================================================
 
 text_cols = [
     "Player",
@@ -99,7 +99,7 @@ if "Points/60" not in df.columns:
     )
 
 # ==================================================
-# NUMERIC METRICS
+# NUMERIC CONVERSION
 # ==================================================
 
 metrics = [
@@ -153,7 +153,7 @@ season_weights = {
 }
 
 # ==================================================
-# KEEP ONLY RELEVANT SEASONS
+# FILTER SEASONS
 # ==================================================
 
 df = df[
@@ -197,10 +197,6 @@ weighted_metrics = [
 
 ]
 
-# ==================================================
-# CREATE WEIGHTED VALUES
-# ==================================================
-
 for metric in weighted_metrics:
 
     df[f"Weighted {metric}"] = (
@@ -214,7 +210,7 @@ for metric in weighted_metrics:
     )
 
 # ==================================================
-# GROUP PLAYERS
+# GROUP PLAYER DATA
 # ==================================================
 
 group_cols = [
@@ -240,7 +236,7 @@ player_df = df.groupby(
 ).agg(agg_dict)
 
 # ==================================================
-# RENAME WEIGHTED METRICS
+# RENAME WEIGHTED COLUMNS
 # ==================================================
 
 rename_dict = {}
@@ -268,7 +264,7 @@ player_df[numeric_cols] = player_df[
 ].round(2)
 
 # ==================================================
-# SIDEBAR FILTERS
+# SIDEBAR
 # ==================================================
 
 st.sidebar.header("Filters")
@@ -621,32 +617,24 @@ breakout_df = filtered_df.sort_values(
 ).head(20)
 
 st.dataframe(
-
     breakout_df[[
         "Player",
         "Team",
         "Age",
-
         "Breakout Score",
         "Trend Score",
         "Gem Score",
-
         "Goals/60",
         "Points/60",
-
         "Shots/60",
         "xG (Expected goals)/60",
-
         "Transition Score",
         "Impact Score",
-
         "Why"
     ]],
-
     use_container_width=True,
     hide_index=True,
     height=600
-
 )
 
 # ==================================================
@@ -663,167 +651,21 @@ gem_df = filtered_df.sort_values(
 ).head(20)
 
 st.dataframe(
-
     gem_df[[
         "Player",
         "Team",
         "Age",
-
         "Gem Score",
-
         "Goals/60",
         "Points/60",
-
         "Shots/60",
         "xG (Expected goals)/60",
-
         "Scoring chances - total/60",
-
         "Transition Score",
         "Impact Score",
-
         "Why"
     ]],
-
     use_container_width=True,
     hide_index=True,
     height=600
-
-)
-
-# ==================================================
-# REGRESSION RISKS
-# ==================================================
-
-st.markdown("---")
-
-st.subheader("⚠️ Regression Risks")
-
-regression_df = filtered_df.sort_values(
-    by="Regression Risk",
-    ascending=False
-).head(20)
-
-st.dataframe(
-
-    regression_df[[
-        "Player",
-        "Team",
-        "Age",
-
-        "Regression Risk",
-
-        "Goals",
-        "xG (Expected goals)",
-
-        "Finishing Delta",
-
-        "Goals/60",
-        "xG (Expected goals)/60",
-
-        "Why"
-    ]],
-
-    use_container_width=True,
-    hide_index=True,
-    height=600
-
-)
-
-# ==================================================
-# MARKET INEFFICIENCIES
-# ==================================================
-
-st.markdown("---")
-
-st.subheader("🧠 Market Inefficiencies")
-
-market_df = filtered_df.sort_values(
-    by="Market Inefficiency",
-    ascending=False
-).head(20)
-
-st.dataframe(
-
-    market_df[[
-        "Player",
-        "Team",
-        "Age",
-
-        "Market Inefficiency",
-
-        "Impact Score",
-        "Transition Score",
-        "Playmaking Score",
-
-        "Points/60",
-
-        "Net xG (xG player on - opp. team's xG)",
-
-        "Why"
-    ]],
-
-    use_container_width=True,
-    hide_index=True,
-    height=600
-
-)
-
-# ==================================================
-# FULL DATABASE
-# ==================================================
-
-st.markdown("---")
-
-st.subheader("📋 Full Database")
-
-search = st.text_input(
-    "Search Player"
-)
-
-database_df = filtered_df.copy()
-
-if search:
-
-    database_df = database_df[
-
-        database_df["Player"]
-        .str.contains(
-            search,
-            case=False,
-            na=False
-        )
-
-    ]
-
-st.dataframe(
-
-    database_df[[
-        "Player",
-        "Team",
-        "Position",
-        "Age",
-
-        "Overall Score",
-
-        "Breakout Score",
-        "Gem Score",
-        "Trend Score",
-        "Regression Risk",
-        "Market Inefficiency",
-
-        "Goals/60",
-        "Points/60",
-
-        "Shots/60",
-        "xG (Expected goals)/60",
-
-        "Transition Score",
-        "Impact Score"
-    ]],
-
-    use_container_width=True,
-    hide_index=True,
-    height=800
-
 )
