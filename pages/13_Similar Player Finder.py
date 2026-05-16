@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 
 # ==================================================
 # PAGE CONFIG
@@ -98,6 +97,18 @@ df = df.dropna(
 )
 
 # ==================================================
+# ROUND NUMBERS
+# ==================================================
+
+numeric_cols = df.select_dtypes(
+    include="number"
+).columns
+
+df[numeric_cols] = df[
+    numeric_cols
+].round(2)
+
+# ==================================================
 # SIDEBAR
 # ==================================================
 
@@ -106,7 +117,7 @@ st.sidebar.header("Filters")
 # POSITION
 
 positions = sorted(
-    df["Position"].unique()
+    df["Position"].dropna().unique()
 )
 
 selected_position = st.sidebar.selectbox(
@@ -121,7 +132,7 @@ filtered_df = df[
 # TEAM
 
 teams = sorted(
-    filtered_df["Team"].unique()
+    filtered_df["Team"].dropna().unique()
 )
 
 selected_team = st.sidebar.selectbox(
@@ -135,7 +146,7 @@ players = sorted(
 
     filtered_df[
         filtered_df["Team"] == selected_team
-    ]["Player"].unique()
+    ]["Player"].dropna().unique()
 
 )
 
@@ -201,31 +212,50 @@ with col2:
         )
 
 # ==================================================
-# COSINE SIMILARITY
+# COSINE SIMILARITY (NUMPY)
 # ==================================================
 
 metric_matrix = filtered_df[
     similarity_metrics
 ].values
 
-similarity_matrix = cosine_similarity(
-    metric_matrix
+# NORMALIZE
+
+norms = np.linalg.norm(
+    metric_matrix,
+    axis=1,
+    keepdims=True
 )
 
-player_index = filtered_df[
-    filtered_df["Player"] == selected_player
-].index[0]
+normalized_matrix = (
+    metric_matrix / norms
+)
 
-real_position = filtered_df.index.get_loc(
-    player_index
+# COSINE SIMILARITY MATRIX
+
+similarity_matrix = np.dot(
+    normalized_matrix,
+    normalized_matrix.T
+)
+
+# ==================================================
+# PLAYER INDEX
+# ==================================================
+
+player_idx = filtered_df.index[
+    filtered_df["Player"] == selected_player
+][0]
+
+matrix_idx = filtered_df.index.get_loc(
+    player_idx
 )
 
 similarities = similarity_matrix[
-    real_position
+    matrix_idx
 ]
 
 # ==================================================
-# SIMILARITY DF
+# SIMILARITY DATAFRAME
 # ==================================================
 
 similarity_df = filtered_df.copy()
@@ -253,10 +283,6 @@ top_matches = similarity_df.head(5)
 st.markdown("---")
 
 st.subheader("🧬 Most Similar Players")
-
-# ==================================================
-# MATCH CARDS
-# ==================================================
 
 for i, (_, row) in enumerate(top_matches.iterrows(), start=1):
 
