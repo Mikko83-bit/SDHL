@@ -7,19 +7,19 @@ import numpy as np
 # ==================================================
 
 st.set_page_config(
-    page_title="Market Discovery",
+    page_title="Market Discovery 3-Year Model",
     layout="wide"
 )
 
-st.title("🔎 Market Discovery")
+st.title("🔎 Market Discovery (3-Year Weighted Model)")
 
 st.markdown("""
-Analytics scouting dashboard for:
+Multi-season scouting model using weighted SDHL data.
 
-- 🚀 Breakout Candidates
-- 💎 Hidden Gems
-- ⚠️ Regression Risks
-- 🧠 Market Inefficiencies
+Weights:
+- 2025-26 → 50%
+- 2024-25 → 30%
+- 2023-24 → 20%
 """)
 
 # ==================================================
@@ -27,7 +27,7 @@ Analytics scouting dashboard for:
 # ==================================================
 
 df = pd.read_excel(
-    "SDHL_Processed_2025_2026.xlsx"
+    "Sdhl_2023_2026_complete (1).xlsx"
 )
 
 # ==================================================
@@ -36,38 +36,45 @@ df = pd.read_excel(
 
 df.columns = df.columns.str.strip()
 
-df["Position"] = (
-    df["Position"]
-    .astype(str)
-    .str.strip()
-)
+# ==================================================
+# CLEAN TEXT
+# ==================================================
 
-df["Team"] = (
-    df["Team"]
-    .astype(str)
-    .str.strip()
-)
+text_cols = [
+    "Player",
+    "Team",
+    "Position",
+    "Season"
+]
+
+for col in text_cols:
+
+    if col in df.columns:
+
+        df[col] = (
+            df[col]
+            .astype(str)
+            .str.strip()
+        )
 
 # ==================================================
 # CREATE AGE
 # ==================================================
 
-df["Date of birth"] = pd.to_datetime(
-    df["Date of birth"],
-    errors="coerce"
-)
+if "Date of birth" in df.columns:
 
-current_year = 2026
+    df["Date of birth"] = pd.to_datetime(
+        df["Date of birth"],
+        errors="coerce"
+    )
 
-df["Age"] = (
+    current_year = 2026
 
-    current_year
-
-    -
-
-    df["Date of birth"].dt.year
-
-)
+    df["Age"] = (
+        current_year
+        -
+        df["Date of birth"].dt.year
+    )
 
 # ==================================================
 # CREATE POINTS/60
@@ -77,27 +84,25 @@ if "Points/60" not in df.columns:
 
     df["Points/60"] = (
 
-        df["Goals/60"]
+        pd.to_numeric(
+            df["Goals/60"],
+            errors="coerce"
+        )
 
         +
 
-        df["Assists/60"]
+        pd.to_numeric(
+            df["Assists/60"],
+            errors="coerce"
+        )
 
     )
 
 # ==================================================
-# NUMERIC CONVERSION
+# NUMERIC METRICS
 # ==================================================
 
-numeric_cols = [
-
-    "Age",
-    "Time on ice",
-    "Games played",
-
-    "Goals",
-    "Assists",
-    "Points",
+metrics = [
 
     "Goals/60",
     "Assists/60",
@@ -105,7 +110,6 @@ numeric_cols = [
 
     "Shots/60",
     "xG (Expected goals)/60",
-
     "Scoring chances - total/60",
 
     "Shooting Score",
@@ -117,13 +121,17 @@ numeric_cols = [
 
     "Overall Score",
 
+    "Goals",
+    "Points",
+    "xG (Expected goals)",
+
     "Net xG (xG player on - opp. team's xG)",
 
-    "xG (Expected goals)"
+    "Time on ice"
 
 ]
 
-for col in numeric_cols:
+for col in metrics:
 
     if col in df.columns:
 
@@ -133,15 +141,130 @@ for col in numeric_cols:
         )
 
 # ==================================================
-# ROUNDING
+# SEASON WEIGHTS
 # ==================================================
 
-number_cols = df.select_dtypes(
+season_weights = {
+
+    "2025-2026": 0.50,
+    "2024-2025": 0.30,
+    "2023-2024": 0.20
+
+}
+
+# ==================================================
+# KEEP ONLY RELEVANT SEASONS
+# ==================================================
+
+df = df[
+    df["Season"].isin(
+        season_weights.keys()
+    )
+]
+
+# ==================================================
+# APPLY WEIGHTS
+# ==================================================
+
+df["Season Weight"] = df[
+    "Season"
+].map(season_weights)
+
+# ==================================================
+# WEIGHTED METRICS
+# ==================================================
+
+weighted_metrics = [
+
+    "Goals/60",
+    "Assists/60",
+    "Points/60",
+
+    "Shots/60",
+    "xG (Expected goals)/60",
+    "Scoring chances - total/60",
+
+    "Shooting Score",
+    "Playmaking Score",
+    "Transition Score",
+    "Puck Movement Score",
+    "Defense Score",
+    "Impact Score",
+
+    "Overall Score",
+
+    "Net xG (xG player on - opp. team's xG)"
+
+]
+
+# ==================================================
+# CREATE WEIGHTED VALUES
+# ==================================================
+
+for metric in weighted_metrics:
+
+    df[f"Weighted {metric}"] = (
+
+        df[metric]
+
+        *
+
+        df["Season Weight"]
+
+    )
+
+# ==================================================
+# GROUP PLAYERS
+# ==================================================
+
+group_cols = [
+
+    "Player",
+    "Team",
+    "Position",
+    "Age"
+
+]
+
+agg_dict = {}
+
+for metric in weighted_metrics:
+
+    agg_dict[f"Weighted {metric}"] = "sum"
+
+agg_dict["Time on ice"] = "sum"
+
+player_df = df.groupby(
+    group_cols,
+    as_index=False
+).agg(agg_dict)
+
+# ==================================================
+# RENAME WEIGHTED METRICS
+# ==================================================
+
+rename_dict = {}
+
+for metric in weighted_metrics:
+
+    rename_dict[
+        f"Weighted {metric}"
+    ] = metric
+
+player_df = player_df.rename(
+    columns=rename_dict
+)
+
+# ==================================================
+# ROUND NUMBERS
+# ==================================================
+
+numeric_cols = player_df.select_dtypes(
     include="number"
 ).columns
 
-df[number_cols] = df[
-    number_cols
+player_df[numeric_cols] = player_df[
+    numeric_cols
 ].round(2)
 
 # ==================================================
@@ -153,7 +276,9 @@ st.sidebar.header("Filters")
 # POSITION
 
 positions = sorted(
-    df["Position"].dropna().unique()
+    player_df["Position"]
+    .dropna()
+    .unique()
 )
 
 selected_position = st.sidebar.selectbox(
@@ -161,8 +286,9 @@ selected_position = st.sidebar.selectbox(
     positions
 )
 
-filtered_df = df[
-    df["Position"] == selected_position
+filtered_df = player_df[
+    player_df["Position"]
+    == selected_position
 ]
 
 # MIN TOI
@@ -170,13 +296,14 @@ filtered_df = df[
 min_toi = st.sidebar.slider(
     "Minimum TOI",
     min_value=0,
-    max_value=1200,
-    value=250,
-    step=25
+    max_value=3000,
+    value=500,
+    step=50
 )
 
 filtered_df = filtered_df[
-    filtered_df["Time on ice"] >= min_toi
+    filtered_df["Time on ice"]
+    >= min_toi
 ]
 
 # AGE FILTER
@@ -199,7 +326,7 @@ filtered_df = filtered_df[
 ]
 
 # ==================================================
-# PERCENTILE METRICS
+# PERCENTILES
 # ==================================================
 
 percentile_metrics = [
@@ -221,20 +348,6 @@ percentile_metrics = [
     "Overall Score"
 
 ]
-
-# KEEP ONLY EXISTING
-
-percentile_metrics = [
-
-    m for m in percentile_metrics
-
-    if m in filtered_df.columns
-
-]
-
-# ==================================================
-# CREATE PERCENTILES
-# ==================================================
 
 for metric in percentile_metrics:
 
@@ -330,18 +443,77 @@ filtered_df["Finishing Delta"] = (
 ).round(2)
 
 # ==================================================
+# TREND SCORE
+# ==================================================
+
+trend_df = df.pivot_table(
+
+    index="Player",
+
+    columns="Season",
+
+    values="Overall Score",
+
+    aggfunc="mean"
+
+).reset_index()
+
+if (
+    "2025-2026" in trend_df.columns
+    and
+    "2024-2025" in trend_df.columns
+):
+
+    trend_df["Trend Score"] = (
+
+        trend_df["2025-2026"]
+
+        -
+
+        trend_df["2024-2025"]
+
+    )
+
+else:
+
+    trend_df["Trend Score"] = 0
+
+filtered_df = filtered_df.merge(
+
+    trend_df[
+        ["Player", "Trend Score"]
+    ],
+
+    on="Player",
+
+    how="left"
+
+)
+
+filtered_df["Trend Score"] = (
+    filtered_df["Trend Score"]
+    .fillna(0)
+)
+
+# ==================================================
 # BREAKOUT SCORE
 # ==================================================
 
 filtered_df["Breakout Score"] = (
 
-    filtered_df["Gem Score"] * 0.60
+    filtered_df["Gem Score"] * 0.45
+
+    +
+
+    filtered_df[
+        "Trend Score"
+    ] * 0.25
 
     +
 
     filtered_df[
         "Impact Score Percentile"
-    ] * 0.20
+    ] * 0.15
 
     +
 
@@ -349,7 +521,7 @@ filtered_df["Breakout Score"] = (
         100
         -
         filtered_df["Age"] * 2
-    ) * 0.20
+    ) * 0.15
 
 ).round(2)
 
@@ -422,8 +594,8 @@ def why_player(row):
     if row["Transition Score Percentile"] >= 80:
         reasons.append("Strong transition")
 
-    if row["Impact Score Percentile"] >= 80:
-        reasons.append("Drives impact")
+    if row["Trend Score"] >= 5:
+        reasons.append("Strong upward trend")
 
     if row["Points/60 Percentile"] <= 40:
         reasons.append("Low production vs process")
@@ -446,7 +618,7 @@ st.subheader("🚀 Breakout Candidates")
 breakout_df = filtered_df.sort_values(
     by="Breakout Score",
     ascending=False
-).head(15)
+).head(20)
 
 st.dataframe(
 
@@ -456,6 +628,7 @@ st.dataframe(
         "Age",
 
         "Breakout Score",
+        "Trend Score",
         "Gem Score",
 
         "Goals/60",
@@ -472,7 +645,7 @@ st.dataframe(
 
     use_container_width=True,
     hide_index=True,
-    height=500
+    height=600
 
 )
 
@@ -487,7 +660,7 @@ st.subheader("💎 Hidden Gems")
 gem_df = filtered_df.sort_values(
     by="Gem Score",
     ascending=False
-).head(15)
+).head(20)
 
 st.dataframe(
 
@@ -514,7 +687,7 @@ st.dataframe(
 
     use_container_width=True,
     hide_index=True,
-    height=500
+    height=600
 
 )
 
@@ -529,7 +702,7 @@ st.subheader("⚠️ Regression Risks")
 regression_df = filtered_df.sort_values(
     by="Regression Risk",
     ascending=False
-).head(15)
+).head(20)
 
 st.dataframe(
 
@@ -553,7 +726,7 @@ st.dataframe(
 
     use_container_width=True,
     hide_index=True,
-    height=500
+    height=600
 
 )
 
@@ -568,7 +741,7 @@ st.subheader("🧠 Market Inefficiencies")
 market_df = filtered_df.sort_values(
     by="Market Inefficiency",
     ascending=False
-).head(15)
+).head(20)
 
 st.dataframe(
 
@@ -592,7 +765,7 @@ st.dataframe(
 
     use_container_width=True,
     hide_index=True,
-    height=500
+    height=600
 
 )
 
@@ -602,7 +775,7 @@ st.dataframe(
 
 st.markdown("---")
 
-st.subheader("📋 Full Player Database")
+st.subheader("📋 Full Database")
 
 search = st.text_input(
     "Search Player"
@@ -633,8 +806,9 @@ st.dataframe(
 
         "Overall Score",
 
-        "Gem Score",
         "Breakout Score",
+        "Gem Score",
+        "Trend Score",
         "Regression Risk",
         "Market Inefficiency",
 
@@ -650,6 +824,6 @@ st.dataframe(
 
     use_container_width=True,
     hide_index=True,
-    height=700
+    height=800
 
 )
