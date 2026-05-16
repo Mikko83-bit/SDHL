@@ -18,7 +18,19 @@ st.set_page_config(
 st.title("🧬 Similar Player Finder")
 
 st.markdown(
-    "Find the most stylistically similar players using advanced analytics profiles."
+    """
+Find players with a similar STYLE profile.
+
+This model compares:
+- shooting tendencies
+- playmaking profile
+- transition impact
+- puck movement
+- defensive style
+- overall impact
+
+while also adjusting for overall player quality.
+"""
 )
 
 # ==================================================
@@ -49,7 +61,7 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN DATA
+# CLEAN
 # ==================================================
 
 df.columns = df.columns.str.strip()
@@ -67,7 +79,7 @@ df["Team"] = (
 )
 
 # ==================================================
-# SIMILARITY METRICS
+# METRICS USED
 # ==================================================
 
 similarity_metrics = [
@@ -82,10 +94,10 @@ similarity_metrics = [
 ]
 
 # ==================================================
-# NUMERIC CLEAN
+# NUMERIC
 # ==================================================
 
-for col in similarity_metrics:
+for col in similarity_metrics + ["Overall Score"]:
 
     df[col] = pd.to_numeric(
         df[col],
@@ -97,7 +109,7 @@ df = df.dropna(
 )
 
 # ==================================================
-# ROUND NUMBERS
+# ROUNDING
 # ==================================================
 
 numeric_cols = df.select_dtypes(
@@ -114,8 +126,6 @@ df[numeric_cols] = df[
 
 st.sidebar.header("Filters")
 
-# POSITION
-
 positions = sorted(
     df["Position"].dropna().unique()
 )
@@ -129,8 +139,6 @@ filtered_df = df[
     df["Position"] == selected_position
 ]
 
-# TEAM
-
 teams = sorted(
     filtered_df["Team"].dropna().unique()
 )
@@ -139,8 +147,6 @@ selected_team = st.sidebar.selectbox(
     "Team",
     teams
 )
-
-# PLAYER
 
 players = sorted(
 
@@ -167,9 +173,9 @@ player_row = filtered_df[
 # PLAYER HEADER
 # ==================================================
 
-col1, col2 = st.columns([1,4])
+c1, c2 = st.columns([1,4])
 
-with col1:
+with c1:
 
     if player_row["Team"] in team_logos:
 
@@ -178,7 +184,7 @@ with col1:
             width=110
         )
 
-with col2:
+with c2:
 
     st.markdown(
         f"## {selected_player}"
@@ -200,7 +206,7 @@ with col2:
     with m2:
 
         st.metric(
-            "League Percentile",
+            "Percentile",
             round(player_row["Overall Score Percentile"])
         )
 
@@ -212,26 +218,59 @@ with col2:
         )
 
 # ==================================================
-# COSINE SIMILARITY (NUMPY)
+# STYLE PROFILE
 # ==================================================
 
-metric_matrix = filtered_df[
-    similarity_metrics
-].values
+style_df = filtered_df.copy()
 
-# NORMALIZE
+# ==================================================
+# CONVERT TO STYLE SHAPE
+# ==================================================
+
+style_vectors = []
+
+for _, row in style_df.iterrows():
+
+    values = np.array([
+
+        row["Shooting Score"],
+        row["Playmaking Score"],
+        row["Transition Score"],
+        row["Puck Movement Score"],
+        row["Defense Score"],
+        row["Impact Score"]
+
+    ])
+
+    # PREVENT DIV BY ZERO
+
+    total = values.sum()
+
+    if total == 0:
+
+        normalized = np.zeros(len(values))
+
+    else:
+
+        normalized = values / total
+
+    style_vectors.append(normalized)
+
+style_matrix = np.array(style_vectors)
+
+# ==================================================
+# COSINE SIMILARITY
+# ==================================================
 
 norms = np.linalg.norm(
-    metric_matrix,
+    style_matrix,
     axis=1,
     keepdims=True
 )
 
 normalized_matrix = (
-    metric_matrix / norms
+    style_matrix / norms
 )
-
-# COSINE SIMILARITY MATRIX
 
 similarity_matrix = np.dot(
     normalized_matrix,
@@ -242,11 +281,11 @@ similarity_matrix = np.dot(
 # PLAYER INDEX
 # ==================================================
 
-player_idx = filtered_df.index[
-    filtered_df["Player"] == selected_player
+player_idx = style_df.index[
+    style_df["Player"] == selected_player
 ][0]
 
-matrix_idx = filtered_df.index.get_loc(
+matrix_idx = style_df.index.get_loc(
     player_idx
 )
 
@@ -255,62 +294,109 @@ similarities = similarity_matrix[
 ]
 
 # ==================================================
-# SIMILARITY DATAFRAME
+# ADD SIMILARITY
 # ==================================================
 
-similarity_df = filtered_df.copy()
+style_df["Style Similarity"] = similarities
 
-similarity_df["Similarity"] = similarities
+# ==================================================
+# OVERALL SCORE DIFFERENCE PENALTY
+# ==================================================
 
-similarity_df = similarity_df[
-    similarity_df["Player"] != selected_player
+selected_overall = player_row[
+    "Overall Score"
 ]
 
-similarity_df = similarity_df.sort_values(
+style_df["Overall Difference"] = abs(
 
-    by="Similarity",
+    style_df["Overall Score"]
+    -
+    selected_overall
+
+)
+
+# ==================================================
+# FINAL HYBRID SCORE
+# ==================================================
+
+style_df["Final Similarity"] = (
+
+    style_df["Style Similarity"] * 0.75
+
+    +
+
+    (
+        1
+        -
+        (
+            style_df["Overall Difference"]
+            / 100
+        )
+    ) * 0.25
+
+)
+
+# ==================================================
+# REMOVE SAME PLAYER
+# ==================================================
+
+style_df = style_df[
+    style_df["Player"] != selected_player
+]
+
+# ==================================================
+# SORT
+# ==================================================
+
+style_df = style_df.sort_values(
+
+    by="Final Similarity",
 
     ascending=False
 
 )
 
-top_matches = similarity_df.head(5)
+top_matches = style_df.head(5)
 
 # ==================================================
-# TOP MATCHES
+# SECTION
 # ==================================================
 
 st.markdown("---")
 
-st.subheader("🧬 Most Similar Players")
+st.subheader("🧬 Most Similar Player Profiles")
+
+# ==================================================
+# PLAYER CARDS
+# ==================================================
 
 for i, (_, row) in enumerate(top_matches.iterrows(), start=1):
 
     similarity_pct = round(
-        row["Similarity"] * 100,
+        row["Final Similarity"] * 100,
         1
     )
 
-    c1, c2 = st.columns([1,5])
+    left, right = st.columns([1,5])
 
     # ==================================================
     # LOGO
     # ==================================================
 
-    with c1:
+    with left:
 
         if row["Team"] in team_logos:
 
             st.image(
                 team_logos[row["Team"]],
-                width=85
+                width=90
             )
 
     # ==================================================
-    # PLAYER CARD
+    # CARD
     # ==================================================
 
-    with c2:
+    with right:
 
         st.markdown(
 
@@ -319,7 +405,8 @@ for i, (_, row) in enumerate(top_matches.iterrows(), start=1):
 background:#111827;
 padding:18px;
 border-radius:14px;
-margin-bottom:12px;
+margin-bottom:14px;
+border:1px solid #1F2937;
 ">
 
 <div style="
@@ -344,13 +431,14 @@ font-weight:700;
 color:#00E5FF;
 margin-top:12px;
 ">
-{similarity_pct}% Similar
+{similarity_pct}% Profile Match
 </div>
 
 <div style="
 margin-top:10px;
 font-size:14px;
 color:white;
+line-height:1.8;
 ">
 
 • Shooting: {round(row['Shooting Score'],1)}<br>
@@ -358,7 +446,8 @@ color:white;
 • Transition: {round(row['Transition Score'],1)}<br>
 • Puck Movement: {round(row['Puck Movement Score'],1)}<br>
 • Defense: {round(row['Defense Score'],1)}<br>
-• Impact: {round(row['Impact Score'],1)}
+• Impact: {round(row['Impact Score'],1)}<br>
+• Overall Score: {round(row['Overall Score'],1)}
 
 </div>
 
@@ -370,12 +459,12 @@ color:white;
         )
 
 # ==================================================
-# PROFILE COMPARISON TABLE
+# PROFILE TABLE
 # ==================================================
 
 st.markdown("---")
 
-st.subheader("📊 Profile Comparison")
+st.subheader("📊 Style Profile Comparison")
 
 comparison_cols = [
 
@@ -391,10 +480,10 @@ comparison_cols = [
 
 ]
 
-display_df = pd.concat([
+comparison_df = pd.concat([
 
-    filtered_df[
-        filtered_df["Player"] == selected_player
+    style_df[
+        style_df["Player"] == selected_player
     ][comparison_cols],
 
     top_matches[
@@ -405,7 +494,7 @@ display_df = pd.concat([
 
 st.dataframe(
 
-    display_df,
+    comparison_df,
 
     use_container_width=True,
 
@@ -416,7 +505,7 @@ st.dataframe(
 )
 
 # ==================================================
-# PLAYER ARCHETYPE
+# ARCHETYPE
 # ==================================================
 
 st.markdown("---")
@@ -424,10 +513,6 @@ st.markdown("---")
 st.subheader("🧠 Player Archetype")
 
 archetype = "Balanced Player"
-
-# ==================================================
-# ARCHETYPE LOGIC
-# ==================================================
 
 if (
 
@@ -443,11 +528,11 @@ if (
 
 elif (
 
-    player_row["Shooting Score"] >= 85
+    player_row["Shooting Score"] >= 90
 
 ):
 
-    archetype = "Elite Finisher"
+    archetype = "Elite Goal Scorer"
 
 elif (
 
@@ -463,11 +548,11 @@ elif (
 
 elif (
 
-    player_row["Puck Movement Score"] >= 80
+    player_row["Puck Movement Score"] >= 85
 
 ):
 
-    archetype = "Puck Possession Driver"
+    archetype = "Possession Driver"
 
 elif (
 
@@ -475,8 +560,6 @@ elif (
 
 ):
 
-    archetype = "Offensive Playmaker"
+    archetype = "Elite Playmaker"
 
-st.info(
-    archetype
-)
+st.info(archetype)
