@@ -7,7 +7,7 @@ import numpy as np
 # ==================================================
 
 st.set_page_config(
-    page_title="Market Discovery",
+    page_title="Breakout Probability Model",
     layout="wide"
 )
 
@@ -15,15 +15,18 @@ st.set_page_config(
 # TITLE
 # ==================================================
 
-st.title("🔎 Market Discovery")
+st.title("🚀 Breakout Probability Model")
 
 st.markdown("""
-Simple scouting dashboard using a weighted 3-year model.
+Predicts which players are most likely to break out offensively.
 
-Weights:
-- 2025-2026 → 50%
-- 2024-2025 → 30%
-- 2023-2024 → 20%
+Model uses:
+- Multi-season weighted data
+- Underlying metrics
+- Age curve
+- Transition impact
+- Shot generation
+- xG trends
 """)
 
 # ==================================================
@@ -35,14 +38,10 @@ df = pd.read_excel(
 )
 
 # ==================================================
-# CLEAN COLUMNS
+# CLEAN DATA
 # ==================================================
 
 df.columns = df.columns.str.strip()
-
-# ==================================================
-# CLEAN TEXT COLUMNS
-# ==================================================
 
 text_cols = [
     "Player",
@@ -112,10 +111,9 @@ if (
 # NUMERIC CONVERSION
 # ==================================================
 
-numeric_metrics = [
+numeric_cols = [
 
     "Goals/60",
-    "Assists/60",
     "Points/60",
 
     "Shots/60",
@@ -123,22 +121,17 @@ numeric_metrics = [
 
     "Scoring chances - total/60",
 
-    "Shooting Score",
-    "Playmaking Score",
     "Transition Score",
     "Impact Score",
+    "Playmaking Score",
 
     "Overall Score",
-
-    "Goals",
-    "Points",
-    "xG (Expected goals)",
 
     "Time on ice"
 
 ]
 
-for col in numeric_metrics:
+for col in numeric_cols:
 
     if col in df.columns:
 
@@ -146,6 +139,14 @@ for col in numeric_metrics:
             df[col],
             errors="coerce"
         )
+
+# ==================================================
+# ACTIVE PLAYERS ONLY
+# ==================================================
+
+active_players = df[
+    df["Season"] == "2025-2026"
+]["Player"].unique()
 
 # ==================================================
 # SEASON WEIGHTS
@@ -160,16 +161,14 @@ season_weights = {
 }
 
 # ==================================================
-# FILTER VALID SEASONS
+# FILTER SEASONS
 # ==================================================
 
-if "Season" in df.columns:
-
-    df = df[
-        df["Season"].isin(
-            season_weights.keys()
-        )
-    ]
+df = df[
+    df["Season"].isin(
+        season_weights.keys()
+    )
+]
 
 # ==================================================
 # APPLY WEIGHTS
@@ -185,24 +184,19 @@ df["Season Weight"] = df[
 
 weighted_metrics = [
 
-    "Goals/60",
     "Points/60",
-
     "Shots/60",
     "xG (Expected goals)/60",
 
     "Scoring chances - total/60",
 
-    "Shooting Score",
-    "Playmaking Score",
     "Transition Score",
     "Impact Score",
+    "Playmaking Score",
 
     "Overall Score"
 
 ]
-
-# KEEP ONLY EXISTING
 
 weighted_metrics = [
 
@@ -229,7 +223,7 @@ for metric in weighted_metrics:
     )
 
 # ==================================================
-# GROUP PLAYER DATA
+# GROUP PLAYERS
 # ==================================================
 
 group_cols = [
@@ -249,9 +243,7 @@ for metric in weighted_metrics:
         f"Weighted {metric}"
     ] = "sum"
 
-if "Time on ice" in df.columns:
-
-    agg_dict["Time on ice"] = "sum"
+agg_dict["Time on ice"] = "sum"
 
 player_df = df.groupby(
     group_cols,
@@ -275,24 +267,22 @@ player_df = player_df.rename(
 )
 
 # ==================================================
-# ROUND NUMBERS
+# KEEP ACTIVE PLAYERS
 # ==================================================
 
-numeric_cols = player_df.select_dtypes(
-    include="number"
-).columns
+player_df = player_df[
 
-player_df[numeric_cols] = player_df[
-    numeric_cols
-].round(2)
+    player_df["Player"].isin(
+        active_players
+    )
+
+]
 
 # ==================================================
-# SIDEBAR
+# FILTERS
 # ==================================================
 
 st.sidebar.header("Filters")
-
-# POSITION
 
 positions = sorted(
     player_df["Position"]
@@ -310,7 +300,7 @@ filtered_df = player_df[
     == selected_position
 ]
 
-# MINIMUM TOI
+# TOI FILTER
 
 min_toi = st.sidebar.slider(
     "Minimum TOI",
@@ -320,20 +310,18 @@ min_toi = st.sidebar.slider(
     step=50
 )
 
-if "Time on ice" in filtered_df.columns:
-
-    filtered_df = filtered_df[
-        filtered_df["Time on ice"]
-        >= min_toi
-    ]
+filtered_df = filtered_df[
+    filtered_df["Time on ice"]
+    >= min_toi
+]
 
 # AGE FILTER
 
 min_age, max_age = st.sidebar.slider(
     "Age Range",
     min_value=15,
-    max_value=45,
-    value=(18, 30)
+    max_value=40,
+    value=(18, 27)
 )
 
 filtered_df = filtered_df[
@@ -347,209 +335,124 @@ filtered_df = filtered_df[
 ]
 
 # ==================================================
-# PERCENTILES
+# CREATE PERCENTILES
 # ==================================================
 
 percentile_metrics = [
 
-    "Goals/60",
     "Points/60",
-
     "Shots/60",
     "xG (Expected goals)/60",
 
     "Scoring chances - total/60",
 
     "Transition Score",
-    "Impact Score"
+    "Impact Score",
+    "Playmaking Score"
 
 ]
-
-# KEEP ONLY EXISTING COLUMNS
-
-existing_percentile_metrics = []
 
 for metric in percentile_metrics:
 
     if metric in filtered_df.columns:
 
-        existing_percentile_metrics.append(metric)
+        filtered_df[
+            f"{metric} Percentile"
+        ] = (
+
+            filtered_df[metric]
+            .rank(pct=True)
+
+            * 100
+
+        )
 
 # ==================================================
-# CREATE PERCENTILES
+# AGE CURVE SCORE
 # ==================================================
 
-for metric in existing_percentile_metrics:
+filtered_df["Age Curve Score"] = np.where(
+
+    filtered_df["Age"] <= 21,
+    100,
+
+    np.where(
+        filtered_df["Age"] <= 24,
+        85,
+
+        np.where(
+            filtered_df["Age"] <= 27,
+            70,
+            50
+        )
+    )
+)
+
+# ==================================================
+# BREAKOUT PROBABILITY
+# ==================================================
+
+filtered_df["Breakout Probability"] = (
 
     filtered_df[
-        f"{metric} Percentile"
-    ] = (
-
-        filtered_df[metric]
-        .rank(pct=True)
-
-        * 100
-
-    )
-
-# ==================================================
-# SAFE COLUMN FUNCTION
-# ==================================================
-
-def safe_col(column_name):
-
-    if column_name in filtered_df.columns:
-
-        return filtered_df[column_name]
-
-    return 0
-
-# ==================================================
-# GEM SCORE
-# ==================================================
-
-filtered_df["Gem Score"] = (
-
-    safe_col(
         "xG (Expected goals)/60 Percentile"
-    ) * 0.30
+    ] * 0.25
 
     +
 
-    safe_col(
+    filtered_df[
         "Shots/60 Percentile"
-    ) * 0.25
+    ] * 0.20
 
     +
 
-    safe_col(
+    filtered_df[
+        "Transition Score Percentile"
+    ] * 0.15
+
+    +
+
+    filtered_df[
+        "Impact Score Percentile"
+    ] * 0.15
+
+    +
+
+    filtered_df[
+        "Playmaking Score Percentile"
+    ] * 0.10
+
+    +
+
+    filtered_df[
         "Scoring chances - total/60 Percentile"
-    ) * 0.20
+    ] * 0.05
 
     +
 
-    safe_col(
-        "Transition Score Percentile"
-    ) * 0.15
+    filtered_df[
+        "Age Curve Score"
+    ] * 0.10
 
-    +
+)
 
-    safe_col(
-        "Impact Score Percentile"
-    ) * 0.10
+filtered_df["Breakout Probability"] = (
 
-    -
-
-    safe_col(
-        "Points/60 Percentile"
-    ) * 0.40
+    filtered_df[
+        "Breakout Probability"
+    ]
+    .clip(0, 100)
+    .round(1)
 
 )
 
 # ==================================================
-# FINISHING DELTA
+# BUILD REASON
 # ==================================================
 
-if (
-    "Goals" in filtered_df.columns
-    and
-    "xG (Expected goals)" in filtered_df.columns
-):
-
-    filtered_df["Finishing Delta"] = (
-
-        filtered_df["Goals"]
-
-        -
-
-        filtered_df["xG (Expected goals)"]
-
-    )
-
-else:
-
-    filtered_df["Finishing Delta"] = 0
-
-# ==================================================
-# BREAKOUT SCORE
-# ==================================================
-
-filtered_df["Breakout Score"] = (
-
-    filtered_df["Gem Score"] * 0.50
-
-    +
-
-    safe_col(
-        "Impact Score Percentile"
-    ) * 0.20
-
-    +
-
-    (
-        100
-        -
-        filtered_df["Age"] * 2
-    ) * 0.30
-
-)
-
-# ==================================================
-# REGRESSION RISK
-# ==================================================
-
-filtered_df["Regression Risk"] = (
-
-    filtered_df["Finishing Delta"] * 0.70
-
-    +
-
-    safe_col(
-        "Goals/60 Percentile"
-    ) * 0.30
-
-)
-
-# ==================================================
-# MARKET INEFFICIENCY
-# ==================================================
-
-filtered_df["Market Inefficiency"] = (
-
-    safe_col(
-        "Impact Score Percentile"
-    ) * 0.40
-
-    +
-
-    safe_col(
-        "Transition Score Percentile"
-    ) * 0.30
-
-    -
-
-    safe_col(
-        "Points/60 Percentile"
-    ) * 0.30
-
-)
-
-# ==================================================
-# WHY FUNCTION
-# ==================================================
-
-def build_reason(row):
+def breakout_reason(row):
 
     reasons = []
-
-    if row.get(
-        "Shots/60 Percentile",
-        0
-    ) >= 80:
-
-        reasons.append(
-            "Elite shot generation"
-        )
 
     if row.get(
         "xG (Expected goals)/60 Percentile",
@@ -557,7 +460,16 @@ def build_reason(row):
     ) >= 80:
 
         reasons.append(
-            "Strong xG profile"
+            "Elite xG profile"
+        )
+
+    if row.get(
+        "Shots/60 Percentile",
+        0
+    ) >= 80:
+
+        reasons.append(
+            "High shot volume"
         )
 
     if row.get(
@@ -566,49 +478,78 @@ def build_reason(row):
     ) >= 80:
 
         reasons.append(
-            "Transition driver"
+            "Strong transition driver"
         )
 
     if row.get(
-        "Points/60 Percentile",
-        100
-    ) <= 40:
+        "Impact Score Percentile",
+        0
+    ) >= 80:
 
         reasons.append(
-            "Low production"
+            "Drives team impact"
+        )
+
+    if row.get(
+        "Age",
+        99
+    ) <= 22:
+
+        reasons.append(
+            "Positive age curve"
         )
 
     return " | ".join(reasons)
 
 filtered_df["Why"] = filtered_df.apply(
-    build_reason,
+    breakout_reason,
     axis=1
 )
 
 # ==================================================
-# SCOUTING CARD
+# SORT
 # ==================================================
 
-def scouting_card(row, score_name):
+filtered_df = filtered_df.sort_values(
+    by="Breakout Probability",
+    ascending=False
+)
 
-    score = round(
-        row[score_name],
-        1
-    )
+# ==================================================
+# PLAYER CARD
+# ==================================================
+
+def breakout_card(row):
+
+    probability = row[
+        "Breakout Probability"
+    ]
+
+    if probability >= 80:
+
+        color = "#22C55E"
+
+    elif probability >= 65:
+
+        color = "#FACC15"
+
+    else:
+
+        color = "#EF4444"
 
     st.markdown(
 
         f"""
 <div style="
 background:#111827;
-padding:18px;
-border-radius:16px;
-margin-bottom:14px;
-border:1px solid #1F2937;
+padding:22px;
+border-radius:18px;
+margin-bottom:18px;
+border-left:8px solid {color};
 ">
 
 <div style="
-font-size:24px;
+font-size:28px;
 font-weight:800;
 color:white;
 ">
@@ -618,25 +559,35 @@ color:white;
 <div style="
 font-size:15px;
 color:#D1D5DB;
-margin-top:2px;
+margin-top:4px;
 ">
 {row['Team']} | {row['Position']} | Age {int(row['Age'])}
 </div>
 
 <div style="
-font-size:18px;
-font-weight:700;
-color:#00E5FF;
-margin-top:12px;
+font-size:44px;
+font-weight:900;
+color:{color};
+margin-top:16px;
+line-height:1;
 ">
-{score_name}: {score}
+{probability}%
 </div>
 
 <div style="
-margin-top:12px;
-font-size:15px;
+font-size:14px;
+font-weight:700;
 color:white;
-line-height:1.7;
+margin-top:4px;
+">
+Breakout Probability
+</div>
+
+<div style="
+margin-top:18px;
+font-size:15px;
+line-height:1.8;
+color:white;
 ">
 
 {row['Why']}
@@ -651,77 +602,49 @@ line-height:1.7;
     )
 
 # ==================================================
-# HIDDEN GEMS
+# TOP BREAKOUTS
 # ==================================================
 
 st.markdown("---")
-st.subheader("💎 Hidden Gems")
 
-gem_df = filtered_df.sort_values(
-    by="Gem Score",
-    ascending=False
-).head(8)
+st.subheader("🚀 Most Likely Breakout Players")
 
-for _, row in gem_df.iterrows():
+top_breakouts = filtered_df.head(12)
 
-    scouting_card(
-        row,
-        "Gem Score"
-    )
+for _, row in top_breakouts.iterrows():
+
+    breakout_card(row)
 
 # ==================================================
-# BREAKOUT PLAYERS
+# TABLE VIEW
 # ==================================================
 
 st.markdown("---")
-st.subheader("🚀 Breakout Players")
 
-breakout_df = filtered_df.sort_values(
-    by="Breakout Score",
-    ascending=False
-).head(8)
+st.subheader("📋 Model Output")
 
-for _, row in breakout_df.iterrows():
+st.dataframe(
 
-    scouting_card(
-        row,
-        "Breakout Score"
-    )
+    filtered_df[[
+        "Player",
+        "Team",
+        "Age",
 
-# ==================================================
-# REGRESSION RISKS
-# ==================================================
+        "Breakout Probability",
 
-st.markdown("---")
-st.subheader("⚠️ Regression Risks")
+        "Points/60",
+        "Shots/60",
 
-regression_df = filtered_df.sort_values(
-    by="Regression Risk",
-    ascending=False
-).head(8)
+        "xG (Expected goals)/60",
 
-for _, row in regression_df.iterrows():
+        "Transition Score",
+        "Impact Score",
 
-    scouting_card(
-        row,
-        "Regression Risk"
-    )
+        "Why"
+    ]],
 
-# ==================================================
-# MARKET INEFFICIENCIES
-# ==================================================
+    use_container_width=True,
+    hide_index=True,
+    height=700
 
-st.markdown("---")
-st.subheader("🧠 Market Inefficiencies")
-
-market_df = filtered_df.sort_values(
-    by="Market Inefficiency",
-    ascending=False
-).head(8)
-
-for _, row in market_df.iterrows():
-
-    scouting_card(
-        row,
-        "Market Inefficiency"
-    )
+)
