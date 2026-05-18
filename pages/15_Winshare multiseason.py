@@ -27,7 +27,10 @@ FILE = "Sdhl 2023-2026_players_teams.xlsx"
 @st.cache_data
 def load_data():
 
+    # ---------------------------------------------------
     # READ EXCEL
+    # ---------------------------------------------------
+
     players = pd.read_excel(FILE, sheet_name="Players")
     teams = pd.read_excel(FILE, sheet_name="Teams")
 
@@ -56,9 +59,6 @@ def load_data():
     # REMOVE DOUBLE UNDERSCORES
 
     players.columns = players.columns.str.replace("__", "_")
-    players.columns = players.columns.str.replace("__", "_")
-
-    teams.columns = teams.columns.str.replace("__", "_")
     teams.columns = teams.columns.str.replace("__", "_")
 
     # ---------------------------------------------------
@@ -92,7 +92,7 @@ def load_data():
     ] = "F"
 
     # ---------------------------------------------------
-    # RENAME COLUMNS
+    # RENAME IMPORTANT COLUMNS
     # ---------------------------------------------------
 
     rename_dict = {
@@ -117,7 +117,7 @@ def load_data():
     df = df.rename(columns=rename_dict)
 
     # ---------------------------------------------------
-    # FILL NaN
+    # NUMERIC COLUMNS
     # ---------------------------------------------------
 
     numeric_cols = df.select_dtypes(include=np.number).columns
@@ -145,7 +145,9 @@ def load_data():
 
     ]
 
-    # CREATE EMPTY Z-COLUMNS
+    # ---------------------------------------------------
+    # CREATE Z-SCORE COLUMNS
+    # ---------------------------------------------------
 
     for metric in metrics:
 
@@ -157,11 +159,9 @@ def load_data():
 
     for season in df["Season"].unique():
 
-        season_mask = df["Season"] == season
-
         for position in ["F", "D"]:
 
-            pos_mask = (
+            mask = (
                 (df["Season"] == season) &
                 (df["Position"] == position)
             )
@@ -170,59 +170,83 @@ def load_data():
 
                 if metric in df.columns:
 
-                    values = df.loc[pos_mask, metric]
+                    values = df.loc[mask, metric]
 
-                    z_values = zscore(values)
+                    # AVOID ZERO STD
+                    if values.std() == 0:
 
-                    z_values = np.nan_to_num(z_values)
+                        df.loc[
+                            mask,
+                            f"{metric}_z"
+                        ] = 0.0
 
-                    df.loc[
-                        pos_mask,
-                        f"{metric}_z"
-                    ] = z_values.astype(float)
+                    else:
+
+                        z_values = zscore(values)
+
+                        z_values = np.nan_to_num(z_values)
+
+                        df.loc[
+                            mask,
+                            f"{metric}_z"
+                        ] = z_values
 
     # ---------------------------------------------------
-    # CALCULATE WS SEASON BY SEASON
+    # CREATE WS COLUMNS
     # ---------------------------------------------------
 
-    all_seasons = []
+    df["OWS"] = 0.0
+    df["DWS"] = 0.0
+    df["WS"] = 0.0
+
+    # ---------------------------------------------------
+    # CALCULATE SEASON BY SEASON
+    # ---------------------------------------------------
 
     for season in df["Season"].unique():
 
-        season_df = df[
+        season_mask = (
             df["Season"] == season
-        ].copy()
+        )
 
         # ---------------------------------------------------
         # LEAGUE AVERAGES
         # ---------------------------------------------------
 
-        league_gpg = season_df["GPG"].mean()
-
-        league_gapg = season_df["GAPG"].mean()
-
-        # ---------------------------------------------------
-        # TEAM ADJUSTMENTS
-        # ---------------------------------------------------
-
-        season_df["Team_Off_Strength"] = (
-            season_df["GPG"] / league_gpg
+        league_gpg = (
+            df.loc[season_mask, "GPG"]
+            .mean()
         )
 
-        season_df["Team_Def_Strength"] = (
-            league_gapg / season_df["GAPG"]
+        league_gapg = (
+            df.loc[season_mask, "GAPG"]
+            .mean()
+        )
+
+        # ---------------------------------------------------
+        # TEAM STRENGTH
+        # ---------------------------------------------------
+
+        team_off_strength = (
+            df.loc[season_mask, "GPG"] /
+            league_gpg
+        )
+
+        team_def_strength = (
+            league_gapg /
+            df.loc[season_mask, "GAPG"]
         )
 
         # ---------------------------------------------------
         # RAW OWS
         # ---------------------------------------------------
 
-        season_df["Raw_OWS"] = (
+        raw_ows = (
 
-            0.30 * season_df["Goals60_z"] +
-            0.35 * season_df["Assists60_z"] +
-            0.20 * season_df["xG60_z"] +
-            0.15 * season_df["SlotPasses_z"]
+            0.30 * df.loc[season_mask, "Goals60_z"] +
+            0.35 * df.loc[season_mask, "Assists60_z"] +
+            0.20 * df.loc[season_mask, "xG60_z"] +
+            0.15 * df.loc[season_mask, "SlotPasses_z"]
 
         )
 
@@ -230,13 +254,13 @@ def load_data():
         # RAW DWS
         # ---------------------------------------------------
 
-        season_df["Raw_DWS"] = (
+        raw_dws = (
 
-            0.40 * season_df["NetxG_z"] +
-            0.20 * season_df["Takeaways60_z"] -
-            0.20 * season_df["PuckLosses60_z"] +
-            0.10 * season_df["NetPenalties60_z"] +
-            0.10 * season_df["PuckBattlesWon_z"]
+            0.40 * df.loc[season_mask, "NetxG_z"] +
+            0.20 * df.loc[season_mask, "Takeaways60_z"] -
+            0.20 * df.loc[season_mask, "PuckLosses60_z"] +
+            0.10 * df.loc[season_mask, "NetPenalties60_z"] +
+            0.10 * df.loc[season_mask, "PuckBattlesWon_z"]
 
         )
 
@@ -244,17 +268,17 @@ def load_data():
         # TEAM ADJUSTMENTS
         # ---------------------------------------------------
 
-        season_df["OWS"] = (
+        adj_ows = (
 
-            season_df["Raw_OWS"] -
-            ((season_df["Team_Off_Strength"] - 1) * 0.50)
+            raw_ows -
+            ((team_off_strength - 1) * 0.50)
 
         )
 
-        season_df["DWS"] = (
+        adj_dws = (
 
-            season_df["Raw_DWS"] -
-            ((season_df["Team_Def_Strength"] - 1) * 0.50)
+            raw_dws -
+            ((team_def_strength - 1) * 0.50)
 
         )
 
@@ -262,84 +286,104 @@ def load_data():
         # TOI STABILIZATION
         # ---------------------------------------------------
 
-        K = 400
+        K = 150
 
-        season_df["TOI_Factor"] = (
+        toi_factor = (
 
-            season_df["Time_on_ice"] /
-            (season_df["Time_on_ice"] + K)
+            df.loc[season_mask, "Time_on_ice"] /
+            (
+                df.loc[season_mask, "Time_on_ice"] + K
+            )
 
-        )
-
-        season_df["OWS"] = (
-            season_df["OWS"] *
-            season_df["TOI_Factor"]
-        )
-
-        season_df["DWS"] = (
-            season_df["DWS"] *
-            season_df["TOI_Factor"]
         )
 
         # ---------------------------------------------------
-        # TOTAL WS
+        # FINAL VALUES
         # ---------------------------------------------------
 
-        season_df["WS"] = (
-            season_df["OWS"] +
-            season_df["DWS"]
+        df.loc[season_mask, "OWS"] = (
+            adj_ows * toi_factor
         )
 
-        # ---------------------------------------------------
+        df.loc[season_mask, "DWS"] = (
+            adj_dws * toi_factor
+        )
+
+        df.loc[season_mask, "WS"] = (
+            df.loc[season_mask, "OWS"] +
+            df.loc[season_mask, "DWS"]
+        )
+
+    # ---------------------------------------------------
+    # PERCENTILES
+    # ---------------------------------------------------
+
+    df["OWS_percentile"] = 0.0
+    df["DWS_percentile"] = 0.0
+    df["WS_percentile"] = 0.0
+
+    # ---------------------------------------------------
+    # RANKINGS
+    # ---------------------------------------------------
+
+    df["OWS_rank"] = 0
+    df["DWS_rank"] = 0
+    df["WS_rank"] = 0
+
+    # ---------------------------------------------------
+    # CALCULATE PER SEASON
+    # ---------------------------------------------------
+
+    for season in df["Season"].unique():
+
+        season_mask = (
+            df["Season"] == season
+        )
+
         # PERCENTILES
-        # ---------------------------------------------------
 
-        season_df["OWS_percentile"] = (
-            season_df["OWS"]
+        df.loc[season_mask, "OWS_percentile"] = (
+            df.loc[season_mask, "OWS"]
             .rank(pct=True) * 100
         )
 
-        season_df["DWS_percentile"] = (
-            season_df["DWS"]
+        df.loc[season_mask, "DWS_percentile"] = (
+            df.loc[season_mask, "DWS"]
             .rank(pct=True) * 100
         )
 
-        season_df["WS_percentile"] = (
-            season_df["WS"]
+        df.loc[season_mask, "WS_percentile"] = (
+            df.loc[season_mask, "WS"]
             .rank(pct=True) * 100
         )
 
-        # ---------------------------------------------------
         # RANKINGS
-        # ---------------------------------------------------
 
-        season_df["OWS_rank"] = (
-            season_df["OWS"]
-            .rank(ascending=False, method="min")
-            .astype(int)
+        df.loc[season_mask, "OWS_rank"] = (
+            df.loc[season_mask, "OWS"]
+            .rank(
+                ascending=False,
+                method="min"
+            )
         )
 
-        season_df["DWS_rank"] = (
-            season_df["DWS"]
-            .rank(ascending=False, method="min")
-            .astype(int)
+        df.loc[season_mask, "DWS_rank"] = (
+            df.loc[season_mask, "DWS"]
+            .rank(
+                ascending=False,
+                method="min"
+            )
         )
 
-        season_df["WS_rank"] = (
-            season_df["WS"]
-            .rank(ascending=False, method="min")
-            .astype(int)
+        df.loc[season_mask, "WS_rank"] = (
+            df.loc[season_mask, "WS"]
+            .rank(
+                ascending=False,
+                method="min"
+            )
         )
 
-        all_seasons.append(season_df)
-
-    # ---------------------------------------------------
-    # FINAL DF
-    # ---------------------------------------------------
-
-    final_df = pd.concat(all_seasons)
-
-    return final_df
+    return df
 
 
 # ---------------------------------------------------
@@ -362,7 +406,7 @@ This dashboard includes:
 - Position-adjusted Win Shares
 - Team-adjusted Win Shares
 - TOI stabilization
-- Multi-season tracking
+- Multi-season player tracking
 
 """)
 
@@ -372,6 +416,8 @@ This dashboard includes:
 
 col1, col2, col3, col4 = st.columns(4)
 
+# SEASON
+
 with col1:
 
     season_filter = st.selectbox(
@@ -379,16 +425,24 @@ with col1:
         sorted(df["Season"].unique())
     )
 
+# TEAM
+
 with col2:
+
+    available_teams = sorted(
+
+        df[
+            df["Season"] == season_filter
+        ]["Team"].unique()
+
+    )
 
     team_filter = st.selectbox(
         "Team",
-        ["All"] + sorted(
-            df[df["Season"] == season_filter]["Team"]
-            .unique()
-            .tolist()
-        )
+        ["All"] + available_teams
     )
+
+# POSITION
 
 with col3:
 
@@ -396,6 +450,8 @@ with col3:
         "Position",
         ["All", "F", "D"]
     )
+
+# MIN GAMES
 
 with col4:
 
@@ -407,7 +463,7 @@ with col4:
     )
 
 # ---------------------------------------------------
-# APPLY FILTERS
+# FILTER DATA
 # ---------------------------------------------------
 
 filtered_df = df.copy()
@@ -454,10 +510,12 @@ player_df = filtered_df[
 # ---------------------------------------------------
 
 st.subheader(
+
     f"{player_df['Player']} | "
     f"{player_df['Team']} | "
     f"{player_df['Season']} | "
     f"{player_df['Position']}"
+
 )
 
 # ---------------------------------------------------
@@ -471,7 +529,7 @@ with m1:
     st.metric(
         "OWS",
         f"{round(player_df['OWS'],2)} "
-        f"(#{player_df['OWS_rank']})"
+        f"(#{int(player_df['OWS_rank'])})"
     )
 
 with m2:
@@ -479,7 +537,7 @@ with m2:
     st.metric(
         "DWS",
         f"{round(player_df['DWS'],2)} "
-        f"(#{player_df['DWS_rank']})"
+        f"(#{int(player_df['DWS_rank'])})"
     )
 
 with m3:
@@ -487,7 +545,7 @@ with m3:
     st.metric(
         "WS",
         f"{round(player_df['WS'],2)} "
-        f"(#{player_df['WS_rank']})"
+        f"(#{int(player_df['WS_rank'])})"
     )
 
 # ---------------------------------------------------
@@ -530,10 +588,13 @@ career_df = df[
 ].sort_values("Season")
 
 trend_fig = px.line(
+
     career_df,
     x="Season",
     y="WS",
-    markers=True
+    markers=True,
+    hover_data=["OWS", "DWS"]
+
 )
 
 st.plotly_chart(
@@ -542,7 +603,7 @@ st.plotly_chart(
 )
 
 # ---------------------------------------------------
-# TOP WS TABLE
+# TOP 20 WS
 # ---------------------------------------------------
 
 st.subheader("Top 20 Win Shares")
@@ -558,7 +619,11 @@ top_ws = (
         "WS"
     ]]
 
-    .sort_values("WS", ascending=False)
+    .sort_values(
+        "WS",
+        ascending=False
+    )
+
     .head(20)
 
 )
