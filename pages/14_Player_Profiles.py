@@ -64,7 +64,7 @@ def load_data():
     teams.columns = teams.columns.str.replace("__", "_")
 
     # ---------------------------------------------------
-    # CREATE TEAM STATS
+    # TEAM STATS
     # ---------------------------------------------------
 
     teams["GPG"] = (
@@ -129,12 +129,14 @@ def load_data():
 
     metrics = [
 
+        # OFFENSE
         "Goals60",
         "Assists60",
         "xG60",
         "Scoring_chances",
         "SlotPasses",
 
+        # DEFENSE
         "NetxG",
         "Takeaways60",
         "PuckLosses60",
@@ -152,7 +154,7 @@ def load_data():
         df[f"{metric}_z"] = 0.0
 
     # ---------------------------------------------------
-    # POSITION-BASED Z-SCORES
+    # POSITION-ADJUSTED Z-SCORES
     # ---------------------------------------------------
 
     for position in ["F", "D"]:
@@ -195,7 +197,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # OFFENSIVE WIN SHARES
+    # RAW OFFENSIVE WIN SHARES
     # ---------------------------------------------------
 
     df["Raw_OWS"] = (
@@ -207,17 +209,8 @@ def load_data():
 
     )
 
-    # TEAM ADJUSTMENT
-
-    df["OWS"] = (
-
-        df["Raw_OWS"] -
-        ((df["Team_Off_Strength"] - 1) * 0.50)
-
-    )
-
     # ---------------------------------------------------
-    # DEFENSIVE WIN SHARES
+    # RAW DEFENSIVE WIN SHARES
     # ---------------------------------------------------
 
     df["Raw_DWS"] = (
@@ -230,13 +223,45 @@ def load_data():
 
     )
 
-    # TEAM ADJUSTMENT
+    # ---------------------------------------------------
+    # TEAM-ADJUSTED WIN SHARES
+    # ---------------------------------------------------
+
+    df["OWS"] = (
+
+        df["Raw_OWS"] -
+        ((df["Team_Off_Strength"] - 1) * 0.50)
+
+    )
 
     df["DWS"] = (
 
         df["Raw_DWS"] -
         ((df["Team_Def_Strength"] - 1) * 0.50)
 
+    )
+
+    # ---------------------------------------------------
+    # TOI STABILIZATION
+    # ---------------------------------------------------
+
+    K = 400
+
+    df["TOI_Factor"] = (
+
+        df["Time_on_ice"] /
+        (df["Time_on_ice"] + K)
+
+    )
+
+    # APPLY STABILIZATION
+
+    df["OWS"] = (
+        df["OWS"] * df["TOI_Factor"]
+    )
+
+    df["DWS"] = (
+        df["DWS"] * df["TOI_Factor"]
     )
 
     # ---------------------------------------------------
@@ -288,6 +313,7 @@ def load_data():
 
     return df
 
+
 # ---------------------------------------------------
 # LOAD DATA
 # ---------------------------------------------------
@@ -306,6 +332,7 @@ This dashboard includes:
 
 - Position-adjusted Win Shares
 - Team-adjusted Win Shares
+- TOI stabilization
 - Offensive Win Shares (OWS)
 - Defensive Win Shares (DWS)
 - Overall Win Shares (WS)
