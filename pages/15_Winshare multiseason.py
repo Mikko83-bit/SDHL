@@ -199,6 +199,8 @@ def load_data():
 
         )
 
+        # CLEAN
+
         df[f"{metric}_z"] = (
 
             df[f"{metric}_z"]
@@ -209,62 +211,64 @@ def load_data():
 
         )
 
+        # ---------------------------------------------------
+        # CLIP EXTREME OUTLIERS
+        # ---------------------------------------------------
+
+        df[f"{metric}_z"] = (
+            df[f"{metric}_z"]
+            .clip(-2.5, 2.5)
+        )
+
     # ---------------------------------------------------
-    # RAW OWS
+    # RAW OFFENSIVE WIN SHARES
     # ---------------------------------------------------
 
     df["Raw_OWS"] = (
 
-        0.30 * df.get("Goals60_z", 0) +
-        0.35 * df.get("Assists60_z", 0) +
+        0.35 * df.get("Goals60_z", 0) +
+        0.40 * df.get("Assists60_z", 0) +
         0.20 * df.get("xG60_z", 0) +
-        0.15 * df.get("SlotPasses_z", 0)
+        0.05 * df.get("SlotPasses_z", 0)
 
     )
 
     # ---------------------------------------------------
-    # RAW DWS
+    # RAW DEFENSIVE WIN SHARES
     # ---------------------------------------------------
 
     df["Raw_DWS"] = (
 
-        0.40 * df.get("NetxG_z", 0) +
-        0.20 * df.get("Takeaways60_z", 0) -
-        0.20 * df.get("PuckLosses60_z", 0) +
-        0.10 * df.get("NetPenalties60_z", 0) +
-        0.10 * df.get("PuckBattlesWon_z", 0)
+        0.25 * df.get("NetxG_z", 0) +
+        0.15 * df.get("Takeaways60_z", 0) -
+        0.15 * df.get("PuckLosses60_z", 0) +
+        0.05 * df.get("NetPenalties60_z", 0) +
+        0.05 * df.get("PuckBattlesWon_z", 0)
 
     )
-
-    # ---------------------------------------------------
-    # WITHOUT TEAM ADJUSTMENT
-    # ---------------------------------------------------
-
-    df["OWS"] = df["Raw_OWS"]
-    df["DWS"] = df["Raw_DWS"]
 
     # ---------------------------------------------------
     # SHIFT TO POSITIVE SCALE
     # ---------------------------------------------------
 
     df["OWS"] = (
-        df["OWS"] + 2
+        df["Raw_OWS"] + 2
     )
 
     df["DWS"] = (
-        df["DWS"] + 2
+        df["Raw_DWS"] + 2
     )
 
     # ---------------------------------------------------
-    # SCALE
+    # OWS MORE IMPORTANT THAN DWS
     # ---------------------------------------------------
 
     df["OWS"] = (
-        df["OWS"] * 0.60
+        df["OWS"] * 0.65
     )
 
     df["DWS"] = (
-        df["DWS"] * 0.60
+        df["DWS"] * 0.45
     )
 
     # ---------------------------------------------------
@@ -296,7 +300,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # FINAL WS
+    # FINAL WIN SHARES
     # ---------------------------------------------------
 
     df["WS"] = (
@@ -336,7 +340,7 @@ def load_data():
     return df
 
 # ---------------------------------------------------
-# LOAD
+# LOAD DATA
 # ---------------------------------------------------
 
 df = load_data()
@@ -465,8 +469,7 @@ with m1:
 
     st.metric(
         "OWS",
-        f"{player_df['OWS']:.2f} "
-        f"(#{int(player_df['WS_rank'])})"
+        f"{player_df['OWS']:.2f}"
     )
 
 with m2:
@@ -480,7 +483,30 @@ with m3:
 
     st.metric(
         "WS",
-        f"{player_df['WS']:.2f}"
+        f"{player_df['WS']:.2f} "
+        f"(#{int(player_df['WS_rank'])})"
+    )
+
+# ---------------------------------------------------
+# PERCENTILES
+# ---------------------------------------------------
+
+p1, p2 = st.columns(2)
+
+with p1:
+
+    st.metric(
+        "WS Percentile",
+        f"{player_df['WS_percentile']:.1f}%"
+    )
+
+with p2:
+
+    st.metric(
+        "Games Played",
+        int(player_df["Games_played"])
+        if "Games_played" in player_df
+        else "-"
     )
 
 # ---------------------------------------------------
