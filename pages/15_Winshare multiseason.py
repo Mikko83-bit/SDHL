@@ -109,10 +109,16 @@ def load_data():
     # FIX POSITION
     # ---------------------------------------------------
 
-    df.loc[
-        df["Player"] == "Elisa_Holopainen",
-        "Position"
-    ] = "F"
+    if "Player" in df.columns:
+
+        df.loc[
+            df["Player"].astype(str).str.contains(
+                "Elisa Holopainen",
+                case=False,
+                na=False
+            ),
+            "Position"
+        ] = "F"
 
     # ---------------------------------------------------
     # NUMERIC
@@ -190,9 +196,19 @@ def load_data():
         df["Puck_battles_won"]
     )
 
-    df["NetxG"] = (
-        df["Net_xG_xG_player_on_-_opp._team's_xG"]
-    )
+    # ---------------------------------------------------
+    # FIND NET xG COLUMN AUTOMATICALLY
+    # ---------------------------------------------------
+
+    netxg_col = [
+
+        col for col in df.columns
+
+        if "Net_xG" in col
+
+    ][0]
+
+    df["NetxG"] = df[netxg_col]
 
     # ---------------------------------------------------
     # FILL AGAIN
@@ -236,6 +252,10 @@ def load_data():
     )
 
     for season in seasons:
+
+        # ---------------------------------------------------
+        # FILTER SEASON
+        # ---------------------------------------------------
 
         season_df = df[
             df["Season"] == season
