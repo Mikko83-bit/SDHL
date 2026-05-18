@@ -140,7 +140,7 @@ def load_data():
     df = df.rename(columns=rename_dict)
 
     # ---------------------------------------------------
-    # FILL NaNs
+    # NUMERIC CONVERSION
     # ---------------------------------------------------
 
     numeric_cols = df.select_dtypes(
@@ -173,13 +173,15 @@ def load_data():
 
     ]
 
+    # KEEP ONLY EXISTING
+
     metrics = [
         m for m in metrics
         if m in df.columns
     ]
 
     # ---------------------------------------------------
-    # RESULT STORAGE
+    # STORE RESULTS
     # ---------------------------------------------------
 
     season_results = []
@@ -214,20 +216,29 @@ def load_data():
         # POSITION-ADJUSTED Z-SCORES
         # ---------------------------------------------------
 
-        for position in ["F", "D"]:
+        for metric in metrics:
 
-            pos_mask = (
-                season_df["Position"] == position
-            )
+            for position in ["F", "D"]:
 
-            for metric in metrics:
+                pos_mask = (
+                    season_df["Position"] == position
+                )
 
                 values = season_df.loc[
                     pos_mask,
                     metric
                 ]
 
-                if len(values) > 1:
+                # NOT ENOUGH PLAYERS
+
+                if len(values) < 2:
+
+                    season_df.loc[
+                        pos_mask,
+                        f"{metric}_z"
+                    ] = 0.0
+
+                else:
 
                     z_values = zscore(values)
 
@@ -235,7 +246,7 @@ def load_data():
                         z_values
                     )
 
-                    # CLIP EXTREMES
+                    # CLIP OUTLIERS
 
                     z_values = np.clip(
                         z_values,
@@ -261,7 +272,7 @@ def load_data():
         )
 
         # ---------------------------------------------------
-        # TEAM ADJUSTMENTS
+        # TEAM ADJUSTMENT
         # ---------------------------------------------------
 
         season_df["Team_Off_Strength"] = (
@@ -313,7 +324,7 @@ def load_data():
                 (
                     season_df["Team_Off_Strength"] - 1
                 )
-                * 0.50
+                * 0.15
             )
 
         )
@@ -328,7 +339,7 @@ def load_data():
                 (
                     season_df["Team_Def_Strength"] - 1
                 )
-                * 0.50
+                * 0.10
             )
 
         )
@@ -366,8 +377,13 @@ def load_data():
         # ---------------------------------------------------
 
         season_df["WS"] = (
-            season_df["OWS"] +
-            season_df["DWS"]
+
+            (season_df["OWS"] * 0.75)
+
+            +
+
+            (season_df["DWS"] * 0.25)
+
         )
 
         # ---------------------------------------------------
@@ -421,7 +437,7 @@ def load_data():
         )
 
         # ---------------------------------------------------
-        # STORE RESULTS
+        # STORE
         # ---------------------------------------------------
 
         season_results.append(
@@ -440,7 +456,7 @@ def load_data():
     return final_df
 
 # ---------------------------------------------------
-# LOAD
+# LOAD DATA
 # ---------------------------------------------------
 
 df = load_data()
@@ -505,7 +521,7 @@ if position_filter != "All":
     ]
 
 # ---------------------------------------------------
-# TOP WS
+# TOP WIN SHARES
 # ---------------------------------------------------
 
 st.subheader("Top Win Shares")
