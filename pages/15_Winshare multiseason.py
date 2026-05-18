@@ -95,7 +95,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # FIX POSITION
+    # FIX POSITIONS
     # ---------------------------------------------------
 
     df.loc[
@@ -104,7 +104,7 @@ def load_data():
     ] = "F"
 
     # ---------------------------------------------------
-    # RENAME COLUMNS
+    # RENAME IMPORTANT COLUMNS
     # ---------------------------------------------------
 
     rename_dict = {
@@ -164,7 +164,7 @@ def load_data():
     ]
 
     # ---------------------------------------------------
-    # CREATE Z-COLUMNS
+    # CREATE Z-SCORE COLUMNS
     # ---------------------------------------------------
 
     for metric in metrics:
@@ -196,6 +196,7 @@ def load_data():
                     ]
 
                     # PREVENT ZERO STD
+
                     if values.std() == 0:
 
                         df.loc[
@@ -217,11 +218,11 @@ def load_data():
                         ] = z_values
 
     # ---------------------------------------------------
-    # TEAM ADJUSTMENT
+    # TEAM STRENGTH
     # ---------------------------------------------------
 
-    df["Team_Off_Strength"] = 0.0
-    df["Team_Def_Strength"] = 0.0
+    df["Team_Off_Strength"] = 1.0
+    df["Team_Def_Strength"] = 1.0
 
     for season in df["Season"].unique():
 
@@ -243,6 +244,8 @@ def load_data():
             ].mean()
         )
 
+        # OFFENSE
+
         df.loc[
             season_mask,
             "Team_Off_Strength"
@@ -254,6 +257,8 @@ def load_data():
             ] / league_gpg
 
         )
+
+        # DEFENSE
 
         df.loc[
             season_mask,
@@ -296,8 +301,10 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # TEAM ADJUSTED
+    # TEAM ADJUSTMENTS
     # ---------------------------------------------------
+
+    # SMALLER ADJUSTMENTS THAN BEFORE
 
     df["OWS"] = (
 
@@ -305,7 +312,7 @@ def load_data():
         (
             (
                 df["Team_Off_Strength"] - 1
-            ) * 0.50
+            ) * 0.25
         )
 
     )
@@ -316,7 +323,7 @@ def load_data():
         (
             (
                 df["Team_Def_Strength"] - 1
-            ) * 0.50
+            ) * 0.15
         )
 
     )
@@ -325,7 +332,9 @@ def load_data():
     # TOI STABILIZATION
     # ---------------------------------------------------
 
-    K = 400
+    # MUCH LIGHTER STABILIZATION
+
+    K = 100
 
     df["TOI_Factor"] = (
 
@@ -347,7 +356,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # TOTAL WS
+    # TOTAL WIN SHARES
     # ---------------------------------------------------
 
     df["WS"] = (
@@ -356,16 +365,12 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # PERCENTILES
+    # PERCENTILES + RANKS
     # ---------------------------------------------------
 
     df["OWS_percentile"] = 0.0
     df["DWS_percentile"] = 0.0
     df["WS_percentile"] = 0.0
-
-    # ---------------------------------------------------
-    # RANKINGS
-    # ---------------------------------------------------
 
     df["OWS_rank"] = 0
     df["DWS_rank"] = 0
@@ -422,7 +427,7 @@ def load_data():
 
         )
 
-        # RANKINGS
+        # RANKS
 
         df.loc[
             season_mask,
