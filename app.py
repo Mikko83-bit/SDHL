@@ -747,3 +747,49 @@ st.plotly_chart(
     fig2,
     use_container_width=True
 )
+# =====================================================
+# PLAYER TREND
+# =====================================================
+
+st.header("Player Career Trend")
+
+players_list = sorted(
+    final_df["Player"].dropna().unique()
+)
+
+selected_player = st.selectbox(
+    "Choose Player",
+    players_list
+)
+
+player_df = final_df[
+    final_df["Player"] == selected_player
+].copy()
+
+player_df = player_df.sort_values(
+    "Season"
+)
+
+st.write(player_df[[
+    "Season",
+    "Player",
+    "OWS",
+    "DWS",
+    "WS"
+]])
+
+# =====================================================
+# WS GRAPH
+# =====================================================
+
+fig = px.line(
+    player_df,
+    x="Season",
+    y="WS",
+    markers=True
+)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
