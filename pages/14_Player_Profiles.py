@@ -27,7 +27,7 @@ FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
 @st.cache_data
 def load_data():
 
-    # READ EXCEL SHEETS
+    # READ EXCEL FILES
     players = pd.read_excel(FILE, sheet_name="Players")
     teams = pd.read_excel(FILE, sheet_name="Teams")
 
@@ -52,6 +52,13 @@ def load_data():
         .str.replace("/", "_per_")
     )
 
+    # REMOVE DOUBLE/TRIPLE UNDERSCORES
+    players.columns = players.columns.str.replace("__", "_")
+    players.columns = players.columns.str.replace("__", "_")
+
+    teams.columns = teams.columns.str.replace("__", "_")
+    teams.columns = teams.columns.str.replace("__", "_")
+
     # ---------------------------------------------------
     # MERGE DATA
     # ---------------------------------------------------
@@ -59,19 +66,26 @@ def load_data():
     df = players.merge(teams, on="Team")
 
     # ---------------------------------------------------
-    # RENAME COLUMNS
+    # RENAME IMPORTANT COLUMNS
     # ---------------------------------------------------
 
     rename_dict = {
+
+        # OFFENSE
         "Goals_per_60": "Goals60",
         "Assists_per_60": "Assists60",
         "xG_per_60": "xG60",
-        "Takeaways__per_60": "Takeaways60",
+
+        # DEFENSE
+        "Takeaways_per_60": "Takeaways60",
         "Puck_losses_per_60": "PuckLosses60",
         "Net_penalties_per_60": "NetPenalties60",
+
+        # OTHER
         "Passes_to_the_slot": "SlotPasses",
         "Puck_battles_won": "PuckBattlesWon",
         "Net_xG": "NetxG"
+
     }
 
     df = df.rename(columns=rename_dict)
@@ -81,6 +95,7 @@ def load_data():
     # ---------------------------------------------------
 
     numeric_cols = df.select_dtypes(include=np.number).columns
+
     df[numeric_cols] = df[numeric_cols].fillna(0)
 
     # ---------------------------------------------------
@@ -88,6 +103,7 @@ def load_data():
     # ---------------------------------------------------
 
     metrics = [
+
         "Goals60",
         "Assists60",
         "xG60",
@@ -98,6 +114,7 @@ def load_data():
         "PuckLosses60",
         "NetPenalties60",
         "PuckBattlesWon"
+
     ]
 
     for metric in metrics:
@@ -106,7 +123,7 @@ def load_data():
 
             df[f"{metric}_z"] = zscore(df[metric])
 
-            # FIX NaN VALUES
+            # REPLACE NaN VALUES
             df[f"{metric}_z"] = (
                 df[f"{metric}_z"]
                 .replace(np.nan, 0)
@@ -117,10 +134,12 @@ def load_data():
     # ---------------------------------------------------
 
     df["OWS"] = (
+
         0.30 * df["Goals60_z"] +
         0.35 * df["Assists60_z"] +
         0.20 * df["xG60_z"] +
         0.15 * df["SlotPasses_z"]
+
     )
 
     # ---------------------------------------------------
@@ -128,11 +147,13 @@ def load_data():
     # ---------------------------------------------------
 
     df["DWS"] = (
+
         0.40 * df["NetxG_z"] +
         0.20 * df["Takeaways60_z"] -
         0.20 * df["PuckLosses60_z"] +
         0.10 * df["NetPenalties60_z"] +
         0.10 * df["PuckBattlesWon_z"]
+
     )
 
     # ---------------------------------------------------
@@ -146,22 +167,18 @@ def load_data():
     # ---------------------------------------------------
 
     df["OWS_percentile"] = (
-        df["OWS"]
-        .rank(pct=True) * 100
+        df["OWS"].rank(pct=True) * 100
     )
 
     df["DWS_percentile"] = (
-        df["DWS"]
-        .rank(pct=True) * 100
+        df["DWS"].rank(pct=True) * 100
     )
 
     df["WS_percentile"] = (
-        df["WS"]
-        .rank(pct=True) * 100
+        df["WS"].rank(pct=True) * 100
     )
 
     return df
-
 
 # ---------------------------------------------------
 # LOAD DATAFRAME
@@ -176,13 +193,15 @@ df = load_data()
 st.title("🏒 SDHL Player Profiles")
 
 st.markdown("""
+
 This dashboard includes:
 
 - Offensive Win Shares (OWS)
 - Defensive Win Shares (DWS)
-- Total Win Shares (WS)
-- Player percentiles
-- Radar visualization
+- Overall Win Shares (WS)
+- Percentiles
+- Player radar charts
+
 """)
 
 # ---------------------------------------------------
@@ -201,7 +220,7 @@ player = st.selectbox(
 player_df = df[df["Player"] == player].iloc[0]
 
 # ---------------------------------------------------
-# PLAYER HEADER
+# HEADER
 # ---------------------------------------------------
 
 st.subheader(
@@ -217,25 +236,28 @@ st.subheader(
 col1, col2, col3 = st.columns(3)
 
 with col1:
+
     st.metric(
         "OWS",
         round(player_df["OWS"], 2)
     )
 
 with col2:
+
     st.metric(
         "DWS",
         round(player_df["DWS"], 2)
     )
 
 with col3:
+
     st.metric(
         "WS",
         round(player_df["WS"], 2)
     )
 
 # ---------------------------------------------------
-# PLAYER INFO
+# PLAYER INFORMATION
 # ---------------------------------------------------
 
 st.subheader("Player Information")
@@ -243,16 +265,32 @@ st.subheader("Player Information")
 info1, info2, info3, info4 = st.columns(4)
 
 with info1:
-    st.write(f"**Games Played:** {player_df['Games_played']}")
+
+    st.write(
+        f"**Games Played:** "
+        f"{player_df['Games_played']}"
+    )
 
 with info2:
-    st.write(f"**Time on Ice:** {player_df['Time_on_ice']}")
+
+    st.write(
+        f"**Time on Ice:** "
+        f"{player_df['Time_on_ice']}"
+    )
 
 with info3:
-    st.write(f"**Points:** {player_df['Points']}")
+
+    st.write(
+        f"**Points:** "
+        f"{player_df['Points']}"
+    )
 
 with info4:
-    st.write(f"**Net xG:** {round(player_df['NetxG'], 2)}")
+
+    st.write(
+        f"**Net xG:** "
+        f"{round(player_df['NetxG'], 2)}"
+    )
 
 # ---------------------------------------------------
 # RADAR CHART
@@ -261,22 +299,29 @@ with info4:
 st.subheader("Player Radar")
 
 radar_df = pd.DataFrame({
+
     "Metric": [
+
         "Goals60",
         "Assists60",
         "xG60",
         "NetxG",
         "Takeaways60",
         "PuckBattlesWon"
+
     ],
+
     "Value": [
+
         player_df["Goals60"],
         player_df["Assists60"],
         player_df["xG60"],
         player_df["NetxG"],
         player_df["Takeaways60"],
         player_df["PuckBattlesWon"]
+
     ]
+
 })
 
 fig = px.line_polar(
@@ -294,13 +339,15 @@ st.plotly_chart(
 )
 
 # ---------------------------------------------------
-# ADDITIONAL STATS TABLE
+# ADDITIONAL STATISTICS
 # ---------------------------------------------------
 
 st.subheader("Additional Statistics")
 
 stats_df = pd.DataFrame({
+
     "Statistic": [
+
         "Goals/60",
         "Assists/60",
         "xG/60",
@@ -309,8 +356,11 @@ stats_df = pd.DataFrame({
         "Net Penalties/60",
         "Puck Battles Won",
         "Slot Passes"
+
     ],
+
     "Value": [
+
         round(player_df["Goals60"], 2),
         round(player_df["Assists60"], 2),
         round(player_df["xG60"], 2),
@@ -319,7 +369,9 @@ stats_df = pd.DataFrame({
         round(player_df["NetPenalties60"], 2),
         round(player_df["PuckBattlesWon"], 2),
         round(player_df["SlotPasses"], 2)
+
     ]
+
 })
 
 st.dataframe(
@@ -337,30 +389,34 @@ st.subheader("League Percentiles")
 p1, p2, p3 = st.columns(3)
 
 with p1:
+
     st.metric(
         "OWS Percentile",
         f"{round(player_df['OWS_percentile'])}%"
     )
 
 with p2:
+
     st.metric(
         "DWS Percentile",
         f"{round(player_df['DWS_percentile'])}%"
     )
 
 with p3:
+
     st.metric(
         "WS Percentile",
         f"{round(player_df['WS_percentile'])}%"
     )
 
 # ---------------------------------------------------
-# TOP PLAYERS
+# TOP 10 WIN SHARES
 # ---------------------------------------------------
 
 st.subheader("Top 10 Win Shares")
 
 top_ws = (
+
     df[[
         "Player",
         "Team",
@@ -369,8 +425,10 @@ top_ws = (
         "DWS",
         "WS"
     ]]
+
     .sort_values("WS", ascending=False)
     .head(10)
+
 )
 
 st.dataframe(
