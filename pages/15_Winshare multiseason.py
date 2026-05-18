@@ -42,14 +42,14 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # CLEAN COLUMN NAMES
+    # CLEAN COLUMNS
     # ---------------------------------------------------
 
     players.columns = (
         players.columns
         .str.strip()
         .str.replace(" ", "_")
-        .str.replace("/", "_per_")
+        .str.replace("/", "_")
         .str.replace("%", "perc")
         .str.replace("(", "", regex=False)
         .str.replace(")", "", regex=False)
@@ -59,7 +59,7 @@ def load_data():
         teams.columns
         .str.strip()
         .str.replace(" ", "_")
-        .str.replace("/", "_per_")
+        .str.replace("/", "_")
         .str.replace("%", "perc")
         .str.replace("(", "", regex=False)
         .str.replace(")", "", regex=False)
@@ -106,7 +106,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # FIX POSITIONS
+    # FIX POSITION
     # ---------------------------------------------------
 
     df.loc[
@@ -115,32 +115,7 @@ def load_data():
     ] = "F"
 
     # ---------------------------------------------------
-    # RENAME IMPORTANT COLUMNS
-    # ---------------------------------------------------
-
-    rename_dict = {
-
-        # OFFENSE
-        "Goals_per_60": "Goals60",
-        "Assists_per_60": "Assists60",
-        "xG_per_60": "xG60",
-
-        # DEFENSE
-        "Takeaways_per_60": "Takeaways60",
-        "Puck_losses_per_60": "PuckLosses60",
-        "Net_penalties_per_60": "NetPenalties60",
-
-        # OTHER
-        "Passes_to_the_slot": "SlotPasses",
-        "Puck_battles_won": "PuckBattlesWon",
-        "Net_xG": "NetxG"
-
-    }
-
-    df = df.rename(columns=rename_dict)
-
-    # ---------------------------------------------------
-    # NUMERIC CONVERSION
+    # FILL NaN
     # ---------------------------------------------------
 
     numeric_cols = df.select_dtypes(
@@ -151,6 +126,77 @@ def load_data():
         df[numeric_cols]
         .fillna(0)
     )
+
+    # ---------------------------------------------------
+    # PER 60 STATS
+    # ---------------------------------------------------
+
+    # AVOID DIVISION BY ZERO
+
+    df["Time_on_ice"] = (
+        df["Time_on_ice"]
+        .replace(0, np.nan)
+    )
+
+    df["Goals60"] = (
+        df["Goals"] /
+        df["Time_on_ice"]
+    ) * 60
+
+    df["Assists60"] = (
+        df["Assists"] /
+        df["Time_on_ice"]
+    ) * 60
+
+    df["xG60"] = (
+        df["xG_Expected_goals"] /
+        df["Time_on_ice"]
+    ) * 60
+
+    df["Takeaways60"] = (
+        df["Takeaways"] /
+        df["Time_on_ice"]
+    ) * 60
+
+    df["PuckLosses60"] = (
+        df["Puck_losses"] /
+        df["Time_on_ice"]
+    ) * 60
+
+    df["NetPenalties60"] = (
+
+        (
+            df["Penalties_drawn"] -
+            df["Penalties"]
+        )
+
+        /
+
+        df["Time_on_ice"]
+
+    ) * 60
+
+    # ---------------------------------------------------
+    # OTHER METRICS
+    # ---------------------------------------------------
+
+    df["SlotPasses"] = (
+        df["Passes_to_the_slot"]
+    )
+
+    df["PuckBattlesWon"] = (
+        df["Puck_battles_won"]
+    )
+
+    df["NetxG"] = (
+        df["Net_xG_xG_player_on_0_opp_teams_xG"]
+    )
+
+    # ---------------------------------------------------
+    # FILL AGAIN
+    # ---------------------------------------------------
+
+    df = df.fillna(0)
 
     # ---------------------------------------------------
     # METRICS
@@ -173,18 +219,11 @@ def load_data():
 
     ]
 
-    # KEEP ONLY EXISTING
-
-    metrics = [
-        m for m in metrics
-        if m in df.columns
-    ]
-
     # ---------------------------------------------------
     # STORE RESULTS
     # ---------------------------------------------------
 
-    season_results = []
+    all_results = []
 
     # ---------------------------------------------------
     # SINGLE SEASON ENGINE
@@ -205,7 +244,7 @@ def load_data():
         ].copy()
 
         # ---------------------------------------------------
-        # CREATE Z-SCORE COLUMNS
+        # CREATE Z-SCORES
         # ---------------------------------------------------
 
         for metric in metrics:
@@ -213,7 +252,7 @@ def load_data():
             season_df[f"{metric}_z"] = 0.0
 
         # ---------------------------------------------------
-        # POSITION-ADJUSTED Z-SCORES
+        # POSITION ADJUSTED Z-SCORES
         # ---------------------------------------------------
 
         for metric in metrics:
@@ -229,14 +268,12 @@ def load_data():
                     metric
                 ]
 
-                # NOT ENOUGH PLAYERS
-
                 if len(values) < 2:
 
                     season_df.loc[
                         pos_mask,
                         f"{metric}_z"
-                    ] = 0.0
+                    ] = 0
 
                 else:
 
@@ -245,8 +282,6 @@ def load_data():
                     z_values = np.nan_to_num(
                         z_values
                     )
-
-                    # CLIP OUTLIERS
 
                     z_values = np.clip(
                         z_values,
@@ -257,7 +292,7 @@ def load_data():
                     season_df.loc[
                         pos_mask,
                         f"{metric}_z"
-                    ] = z_values.astype(float)
+                    ] = z_values
 
         # ---------------------------------------------------
         # LEAGUE AVERAGES
@@ -272,7 +307,7 @@ def load_data():
         )
 
         # ---------------------------------------------------
-        # TEAM ADJUSTMENT
+        # TEAM STRENGTH
         # ---------------------------------------------------
 
         season_df["Team_Off_Strength"] = (
@@ -390,16 +425,6 @@ def load_data():
         # PERCENTILES
         # ---------------------------------------------------
 
-        season_df["OWS_percentile"] = (
-            season_df["OWS"]
-            .rank(pct=True) * 100
-        )
-
-        season_df["DWS_percentile"] = (
-            season_df["DWS"]
-            .rank(pct=True) * 100
-        )
-
         season_df["WS_percentile"] = (
             season_df["WS"]
             .rank(pct=True) * 100
@@ -408,24 +433,6 @@ def load_data():
         # ---------------------------------------------------
         # RANKS
         # ---------------------------------------------------
-
-        season_df["OWS_rank"] = (
-            season_df["OWS"]
-            .rank(
-                ascending=False,
-                method="min"
-            )
-            .astype(int)
-        )
-
-        season_df["DWS_rank"] = (
-            season_df["DWS"]
-            .rank(
-                ascending=False,
-                method="min"
-            )
-            .astype(int)
-        )
 
         season_df["WS_rank"] = (
             season_df["WS"]
@@ -440,23 +447,23 @@ def load_data():
         # STORE
         # ---------------------------------------------------
 
-        season_results.append(
+        all_results.append(
             season_df
         )
 
     # ---------------------------------------------------
-    # COMBINE ALL SEASONS
+    # FINAL DF
     # ---------------------------------------------------
 
     final_df = pd.concat(
-        season_results,
+        all_results,
         ignore_index=True
     )
 
     return final_df
 
 # ---------------------------------------------------
-# LOAD DATA
+# LOAD
 # ---------------------------------------------------
 
 df = load_data()
@@ -521,7 +528,7 @@ if position_filter != "All":
     ]
 
 # ---------------------------------------------------
-# TOP WIN SHARES
+# TOP WS
 # ---------------------------------------------------
 
 st.subheader("Top Win Shares")
@@ -585,16 +592,14 @@ with m1:
 
     st.metric(
         "OWS",
-        f"{round(player_df['OWS'],2)} "
-        f"(#{player_df['OWS_rank']})"
+        f"{round(player_df['OWS'],2)}"
     )
 
 with m2:
 
     st.metric(
         "DWS",
-        f"{round(player_df['DWS'],2)} "
-        f"(#{player_df['DWS_rank']})"
+        f"{round(player_df['DWS'],2)}"
     )
 
 with m3:
