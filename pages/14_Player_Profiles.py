@@ -1,63 +1,11 @@
-# SDHL 2025-2026 Win Shares Streamlit App
-
-## Folder Structure
-
-```text
-project/
-│
-├── Home.py
-├── requirements.txt
-├── Skaters - SDHL 2025-2026 WIN SHARE.xlsx
-│
-├── pages/
-│   ├── 1_Player_Profiles.py
-│   ├── 2_Win_Shares_Rankings.py
-│   ├── 3_Team_Analysis.py
-│   └── 4_League_Overview.py
-```
-
----
-
-# requirements.txt
-
-```txt
-streamlit
-pandas
-numpy
-plotly
-scipy
-openpyxl
-```
-
----
-
-# IMPORTANT
-
-Excel file name:
-
-```text
-Skaters - SDHL 2025-2026 WIN SHARE.xlsx
-```
-
-Sheet names should be:
-
-```text
-Players
-Teams
-```
-
----
-
-# Home.py
-
-```python
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.express as px
 from scipy.stats import zscore
 
 st.set_page_config(
-    page_title="SDHL Win Shares",
+    page_title="Player Profiles",
     page_icon="🏒",
     layout="wide"
 )
@@ -65,12 +13,13 @@ st.set_page_config(
 FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
 
 @st.cache_data
-
 def load_data():
+
+    # READ EXCEL
     players = pd.read_excel(FILE, sheet_name="Players")
     teams = pd.read_excel(FILE, sheet_name="Teams")
 
-    # Clean column names
+    # CLEAN COLUMN NAMES
     players.columns = (
         players.columns
         .str.strip()
@@ -88,10 +37,10 @@ def load_data():
         .str.replace("/", "_per_")
     )
 
-    # Merge
+    # MERGE PLAYER + TEAM DATA
     df = players.merge(teams, on="Team")
 
-    # Rename easier columns
+    # RENAME IMPORTANT COLUMNS
     df = df.rename(columns={
         "Goals_per_60": "Goals60",
         "Assists_per_60": "Assists60",
@@ -104,11 +53,11 @@ def load_data():
         "Net_xG": "NetxG"
     })
 
-    # Fill missing values
+    # FILL MISSING VALUES
     numeric_cols = df.select_dtypes(include=np.number).columns
     df[numeric_cols] = df[numeric_cols].fillna(0)
 
-    # Z-scores
+    # METRICS FOR Z-SCORES
     metrics = [
         "Goals60",
         "Assists60",
@@ -122,11 +71,12 @@ def load_data():
         "PuckBattlesWon"
     ]
 
+    # CREATE Z-SCORES
     for metric in metrics:
         if metric in df.columns:
             df[f"{metric}_z"] = zscore(df[metric])
 
-    # Offensive Win Shares
+    # OFFENSIVE WIN SHARES
     df["OWS"] = (
         0.30 * df["Goals60_z"] +
         0.35 * df["Assists60_z"] +
@@ -134,7 +84,7 @@ def load_data():
         0.15 * df["SlotPasses_z"]
     )
 
-    # Defensive Win Shares
+    # DEFENSIVE WIN SHARES
     df["DWS"] = (
         0.40 * df["NetxG_z"] +
         0.20 * df["Takeaways60_z"] -
@@ -143,10 +93,10 @@ def load_data():
         0.10 * df["PuckBattlesWon_z"]
     )
 
-    # Overall Win Shares
+    # TOTAL WIN SHARES
     df["WS"] = df["OWS"] + df["DWS"]
 
-    # Percentiles
+    # PERCENTILES
     df["OWS_percentile"] = df["OWS"].rank(pct=True) * 100
     df["DWS_percentile"] = df["DWS"].rank(pct=True) * 100
     df["WS_percentile"] = df["WS"].rank(pct=True) * 100
@@ -154,148 +104,63 @@ def load_data():
     return df
 
 
+# LOAD DATA
 df = load_data()
 
-st.title("🏒 SDHL 2025-2026 Win Shares Dashboard")
+# TITLE
+st.title("🏒 Player Profiles")
 
-st.markdown("""
-This dashboard calculates:
-- Offensive Win Shares (OWS)
-- Defensive Win Shares (DWS)
-- Overall Win Shares (WS)
-""")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Players", len(df))
-
-with col2:
-    st.metric("Teams", df['Team'].nunique())
-
-with col3:
-    st.metric("Average WS", round(df['WS'].mean(), 2))
-
-st.subheader("Top 10 Overall Win Shares")
-
-leaderboard = df[[
-    "Player",
-    "Team",
-    "Position",
-    "OWS",
-    "DWS",
-    "WS"
-]].sort_values("WS", ascending=False).head(10)
-
-st.dataframe(leaderboard, use_container_width=True)
-```
-
----
-
-# pages/1_Player_Profiles.py
-
-```python
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-from scipy.stats import zscore
-import numpy as np
-
-FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
-
-@st.cache_data
-
-def load_data():
-    players = pd.read_excel(FILE, sheet_name="Players")
-    teams = pd.read_excel(FILE, sheet_name="Teams")
-
-    players.columns = (
-        players.columns
-        .str.strip()
-        .str.replace(" ", "_")
-        .str.replace("/", "_per_")
-        .str.replace("%", "perc")
-        .str.replace("(", "", regex=False)
-        .str.replace(")", "", regex=False)
-    )
-
-    teams.columns = (
-        teams.columns
-        .str.strip()
-        .str.replace(" ", "_")
-    )
-
-    df = players.merge(teams, on="Team")
-
-    df = df.rename(columns={
-        "Goals_per_60": "Goals60",
-        "Assists_per_60": "Assists60",
-        "xG_per_60": "xG60",
-        "Takeaways__per_60": "Takeaways60",
-        "Puck_losses_per_60": "PuckLosses60",
-        "Net_penalties_per_60": "NetPenalties60",
-        "Passes_to_the_slot": "SlotPasses",
-        "Puck_battles_won": "PuckBattlesWon",
-        "Net_xG": "NetxG"
-    })
-
-    metrics = [
-        "Goals60",
-        "Assists60",
-        "xG60",
-        "SlotPasses",
-        "NetxG",
-        "Takeaways60",
-        "PuckLosses60",
-        "NetPenalties60",
-        "PuckBattlesWon"
-    ]
-
-    for metric in metrics:
-        df[f"{metric}_z"] = zscore(df[metric])
-
-    df["OWS"] = (
-        0.30 * df["Goals60_z"] +
-        0.35 * df["Assists60_z"] +
-        0.20 * df["xG60_z"] +
-        0.15 * df["SlotPasses_z"]
-    )
-
-    df["DWS"] = (
-        0.40 * df["NetxG_z"] +
-        0.20 * df["Takeaways60_z"] -
-        0.20 * df["PuckLosses60_z"] +
-        0.10 * df["NetPenalties60_z"] +
-        0.10 * df["PuckBattlesWon_z"]
-    )
-
-    df["WS"] = df["OWS"] + df["DWS"]
-
-    return df
-
-
-df = load_data()
-
-st.title("Player Profiles")
-
+# PLAYER SELECTOR
 player = st.selectbox(
-    "Select player",
+    "Select Player",
     sorted(df["Player"].unique())
 )
 
+# PLAYER DATA
 player_df = df[df["Player"] == player].iloc[0]
 
+# HEADER
+st.subheader(f"{player_df['Player']} | {player_df['Team']}")
+
+# MAIN METRICS
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.metric("OWS", round(player_df["OWS"], 2))
+    st.metric(
+        "Offensive Win Shares",
+        round(player_df["OWS"], 2)
+    )
 
 with col2:
-    st.metric("DWS", round(player_df["DWS"], 2))
+    st.metric(
+        "Defensive Win Shares",
+        round(player_df["DWS"], 2)
+    )
 
 with col3:
-    st.metric("WS", round(player_df["WS"], 2))
+    st.metric(
+        "Total Win Shares",
+        round(player_df["WS"], 2)
+    )
 
+# PLAYER INFO
+st.subheader("Player Information")
+
+info_col1, info_col2, info_col3, info_col4 = st.columns(4)
+
+with info_col1:
+    st.write(f"**Position:** {player_df['Position']}")
+
+with info_col2:
+    st.write(f"**Games Played:** {player_df['Games_played']}")
+
+with info_col3:
+    st.write(f"**Time on Ice:** {player_df['Time_on_ice']}")
+
+with info_col4:
+    st.write(f"**Points:** {player_df['Points']}")
+
+# RADAR DATA
 radar_df = pd.DataFrame({
     "Metric": [
         "Goals60",
@@ -315,6 +180,7 @@ radar_df = pd.DataFrame({
     ]
 })
 
+# RADAR CHART
 fig = px.line_polar(
     radar_df,
     r="Value",
@@ -322,225 +188,66 @@ fig = px.line_polar(
     line_close=True
 )
 
-st.plotly_chart(fig, use_container_width=True)
-```
+fig.update_traces(fill='toself')
 
----
+st.subheader("Player Radar")
 
-# pages/2_Win_Shares_Rankings.py
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
 
-```python
-import streamlit as st
-import pandas as pd
-import numpy as np
-from scipy.stats import zscore
+# ADDITIONAL STATS
+st.subheader("Additional Statistics")
 
-FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
-
-@st.cache_data
-
-def load_data():
-    players = pd.read_excel(FILE, sheet_name="Players")
-    teams = pd.read_excel(FILE, sheet_name="Teams")
-
-    players.columns = (
-        players.columns
-        .str.strip()
-        .str.replace(" ", "_")
-        .str.replace("/", "_per_")
-        .str.replace("%", "perc")
-        .str.replace("(", "", regex=False)
-        .str.replace(")", "", regex=False)
-    )
-
-    teams.columns = (
-        teams.columns
-        .str.strip()
-        .str.replace(" ", "_")
-    )
-
-    df = players.merge(teams, on="Team")
-
-    df = df.rename(columns={
-        "Goals_per_60": "Goals60",
-        "Assists_per_60": "Assists60",
-        "xG_per_60": "xG60",
-        "Takeaways__per_60": "Takeaways60",
-        "Puck_losses_per_60": "PuckLosses60",
-        "Net_penalties_per_60": "NetPenalties60",
-        "Passes_to_the_slot": "SlotPasses",
-        "Puck_battles_won": "PuckBattlesWon",
-        "Net_xG": "NetxG"
-    })
-
-    metrics = [
-        "Goals60",
-        "Assists60",
-        "xG60",
-        "SlotPasses",
-        "NetxG",
-        "Takeaways60",
-        "PuckLosses60",
-        "NetPenalties60",
-        "PuckBattlesWon"
+stats_df = pd.DataFrame({
+    "Statistic": [
+        "Goals/60",
+        "Assists/60",
+        "xG/60",
+        "Net xG",
+        "Takeaways/60",
+        "Puck Losses/60",
+        "Net Penalties/60",
+        "Puck Battles Won"
+    ],
+    "Value": [
+        round(player_df["Goals60"], 2),
+        round(player_df["Assists60"], 2),
+        round(player_df["xG60"], 2),
+        round(player_df["NetxG"], 2),
+        round(player_df["Takeaways60"], 2),
+        round(player_df["PuckLosses60"], 2),
+        round(player_df["NetPenalties60"], 2),
+        round(player_df["PuckBattlesWon"], 2)
     ]
+})
 
-    for metric in metrics:
-        df[f"{metric}_z"] = zscore(df[metric])
+st.dataframe(
+    stats_df,
+    use_container_width=True,
+    hide_index=True
+)
 
-    df["OWS"] = (
-        0.30 * df["Goals60_z"] +
-        0.35 * df["Assists60_z"] +
-        0.20 * df["xG60_z"] +
-        0.15 * df["SlotPasses_z"]
+# PERCENTILES
+st.subheader("League Percentiles")
+
+perc_col1, perc_col2, perc_col3 = st.columns(3)
+
+with perc_col1:
+    st.metric(
+        "OWS Percentile",
+        f"{round(player_df['OWS_percentile'])}%"
     )
 
-    df["DWS"] = (
-        0.40 * df["NetxG_z"] +
-        0.20 * df["Takeaways60_z"] -
-        0.20 * df["PuckLosses60_z"] +
-        0.10 * df["NetPenalties60_z"] +
-        0.10 * df["PuckBattlesWon_z"]
+with perc_col2:
+    st.metric(
+        "DWS Percentile",
+        f"{round(player_df['DWS_percentile'])}%"
     )
 
-    df["WS"] = df["OWS"] + df["DWS"]
-
-    return df
-
-
-df = load_data()
-
-st.title("Win Shares Rankings")
-
-metric = st.selectbox(
-    "Select metric",
-    ["OWS", "DWS", "WS"]
-)
-
-position = st.multiselect(
-    "Position",
-    df["Position"].unique(),
-    default=df["Position"].unique()
-)
-
-filtered_df = df[df["Position"].isin(position)]
-
-ranking = filtered_df[[
-    "Player",
-    "Team",
-    "Position",
-    "Goals60",
-    "Assists60",
-    "xG60",
-    "OWS",
-    "DWS",
-    "WS"
-]].sort_values(metric, ascending=False)
-
-st.dataframe(ranking, use_container_width=True)
-```
-
----
-
-# pages/3_Team_Analysis.py
-
-```python
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-
-FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
-
-players = pd.read_excel(FILE, sheet_name="Players")
-teams = pd.read_excel(FILE, sheet_name="Teams")
-
-st.title("Team Analysis")
-
-team = st.selectbox(
-    "Select Team",
-    teams["Team"].unique()
-)
-
-team_players = players[players["Team"] == team]
-
-st.subheader("Roster")
-st.dataframe(team_players)
-
-fig = px.bar(
-    teams,
-    x="Team",
-    y="G",
-    title="Goals For by Team"
-)
-
-st.plotly_chart(fig, use_container_width=True)
-```
-
----
-
-# pages/4_League_Overview.py
-
-```python
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-
-FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
-
-players = pd.read_excel(FILE, sheet_name="Players")
-
-players.columns = (
-    players.columns
-    .str.strip()
-    .str.replace(" ", "_")
-    .str.replace("/", "_per_")
-)
-
-st.title("League Overview")
-
-fig = px.histogram(
-    players,
-    x="Points",
-    nbins=20,
-    title="Points Distribution"
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-fig2 = px.scatter(
-    players,
-    x="Goals_per_60",
-    y="xG_per_60",
-    hover_name="Player",
-    color="Team"
-)
-
-st.plotly_chart(fig2, use_container_width=True)
-```
-
----
-
-# RUN THE APP
-
-Open terminal:
-
-```bash
-streamlit run Home.py
-```
-
----
-
-# NEXT IMPROVEMENTS
-
-Later you can add:
-
-* Team-adjusted Win Shares
-* League-adjusted Win Shares
-* Percentiles
-* Player comparison
-* Radar charts
-* Prospect model
-* Transition impact
-* xWAR model
-* GAR model
-
+with perc_col3:
+    st.metric(
+        "WS Percentile",
+        f"{round(player_df['WS_percentile'])}%"
+    )
