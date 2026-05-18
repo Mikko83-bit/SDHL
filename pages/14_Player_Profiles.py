@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 from scipy.stats import zscore
 
 # ---------------------------------------------------
@@ -75,22 +74,19 @@ def load_data():
     ] = "F"
 
     # ---------------------------------------------------
-    # RENAME IMPORTANT COLUMNS
+    # RENAME COLUMNS
     # ---------------------------------------------------
 
     rename_dict = {
 
-        # OFFENSE
         "Goals_per_60": "Goals60",
         "Assists_per_60": "Assists60",
         "xG_per_60": "xG60",
 
-        # DEFENSE
         "Takeaways_per_60": "Takeaways60",
         "Puck_losses_per_60": "PuckLosses60",
         "Net_penalties_per_60": "NetPenalties60",
 
-        # OTHER
         "Passes_to_the_slot": "SlotPasses",
         "Puck_battles_won": "PuckBattlesWon",
         "Net_xG": "NetxG"
@@ -100,7 +96,7 @@ def load_data():
     df = df.rename(columns=rename_dict)
 
     # ---------------------------------------------------
-    # FILL MISSING VALUES
+    # FILL NaN
     # ---------------------------------------------------
 
     numeric_cols = df.select_dtypes(include=np.number).columns
@@ -108,7 +104,7 @@ def load_data():
     df[numeric_cols] = df[numeric_cols].fillna(0)
 
     # ---------------------------------------------------
-    # CREATE Z-SCORES
+    # POSITION ADJUSTED Z-SCORES
     # ---------------------------------------------------
 
     metrics = [
@@ -118,6 +114,7 @@ def load_data():
         "xG60",
         "Scoring_chances",
         "SlotPasses",
+
         "NetxG",
         "Takeaways60",
         "PuckLosses60",
@@ -126,23 +123,50 @@ def load_data():
 
     ]
 
+    # CREATE EMPTY COLUMNS
     for metric in metrics:
 
-        if metric in df.columns:
+        df[f"{metric}_z"] = 0
 
-            df[f"{metric}_z"] = zscore(df[metric])
+    # CALCULATE POSITION-BASED Z-SCORES
+    for position in ["F", "D"]:
 
-            # REPLACE NaN
-            df[f"{metric}_z"] = (
-                df[f"{metric}_z"]
-                .replace(np.nan, 0)
-            )
+        pos_mask = df["Position"] == position
+
+        for metric in metrics:
+
+            if metric in df.columns:
+
+                values = df.loc[pos_mask, metric]
+
+                z_values = zscore(values)
+
+                z_values = np.nan_to_num(z_values)
+
+                df.loc[pos_mask, f"{metric}_z"] = z_values
+
+    # ---------------------------------------------------
+    # TEAM ADJUSTMENTS
+    # ---------------------------------------------------
+
+    # LEAGUE AVERAGES
+    league_gpg = teams["GPG"].mean()
+    league_gapg = teams["GAPG"].mean()
+
+    # TEAM STRENGTH
+    df["Team_Off_Strength"] = (
+        df["GPG"] / league_gpg
+    )
+
+    df["Team_Def_Strength"] = (
+        league_gapg / df["GAPG"]
+    )
 
     # ---------------------------------------------------
     # OFFENSIVE WIN SHARES
     # ---------------------------------------------------
 
-    df["OWS"] = (
+    df["Raw_OWS"] = (
 
         0.30 * df["Goals60_z"] +
         0.35 * df["Assists60_z"] +
@@ -151,11 +175,17 @@ def load_data():
 
     )
 
+    # TEAM ADJUSTED OWS
+    df["OWS"] = (
+        df["Raw_OWS"] -
+        ((df["Team_Off_Strength"] - 1) * 0.50)
+    )
+
     # ---------------------------------------------------
     # DEFENSIVE WIN SHARES
     # ---------------------------------------------------
 
-    df["DWS"] = (
+    df["Raw_DWS"] = (
 
         0.40 * df["NetxG_z"] +
         0.20 * df["Takeaways60_z"] -
@@ -163,6 +193,12 @@ def load_data():
         0.10 * df["NetPenalties60_z"] +
         0.10 * df["PuckBattlesWon_z"]
 
+    )
+
+    # TEAM ADJUSTED DWS
+    df["DWS"] = (
+        df["Raw_DWS"] -
+        ((df["Team_Def_Strength"] - 1) * 0.50)
     )
 
     # ---------------------------------------------------
@@ -176,15 +212,40 @@ def load_data():
     # ---------------------------------------------------
 
     df["OWS_percentile"] = (
-        df["OWS"].rank(pct=True) * 100
+        df["OWS"]
+        .rank(pct=True) * 100
     )
 
     df["DWS_percentile"] = (
-        df["DWS"].rank(pct=True) * 100
+        df["DWS"]
+        .rank(pct=True) * 100
     )
 
     df["WS_percentile"] = (
-        df["WS"].rank(pct=True) * 100
+        df["WS"]
+        .rank(pct=True) * 100
+    )
+
+    # ---------------------------------------------------
+    # RANKINGS
+    # ---------------------------------------------------
+
+    df["OWS_rank"] = (
+        df["OWS"]
+        .rank(ascending=False, method="min")
+        .astype(int)
+    )
+
+    df["DWS_rank"] = (
+        df["DWS"]
+        .rank(ascending=False, method="min")
+        .astype(int)
+    )
+
+    df["WS_rank"] = (
+        df["WS"]
+        .rank(ascending=False, method="min")
+        .astype(int)
     )
 
     return df
@@ -204,13 +265,13 @@ st.title("🏒 SDHL Player Profiles")
 st.markdown("""
 This dashboard includes:
 
+- Position-adjusted Win Shares
+- Team-adjusted Win Shares
 - Offensive Win Shares (OWS)
 - Defensive Win Shares (DWS)
 - Overall Win Shares (WS)
-- Radar charts
 - Percentiles
-- Team filters
-- Position filters
+- League rankings
 """)
 
 # ---------------------------------------------------
@@ -235,7 +296,7 @@ with filter_col2:
         ["All", "F", "D"]
     )
 
-# MINIMUM GAMES FILTER
+# MINIMUM GAMES
 with filter_col3:
 
     min_games = st.slider(
@@ -304,25 +365,57 @@ with col1:
 
     st.metric(
         "OWS",
-        round(player_df["OWS"], 2)
+        f"{round(player_df['OWS'],2)} "
+        f"(#{player_df['OWS_rank']})"
     )
 
 with col2:
 
     st.metric(
         "DWS",
-        round(player_df["DWS"], 2)
+        f"{round(player_df['DWS'],2)} "
+        f"(#{player_df['DWS_rank']})"
     )
 
 with col3:
 
     st.metric(
         "WS",
-        round(player_df["WS"], 2)
+        f"{round(player_df['WS'],2)} "
+        f"(#{player_df['WS_rank']})"
     )
 
 # ---------------------------------------------------
-# PLAYER INFORMATION
+# PERCENTILES
+# ---------------------------------------------------
+
+st.subheader("League Percentiles")
+
+p1, p2, p3 = st.columns(3)
+
+with p1:
+
+    st.metric(
+        "OWS Percentile",
+        f"{round(player_df['OWS_percentile'])}%"
+    )
+
+with p2:
+
+    st.metric(
+        "DWS Percentile",
+        f"{round(player_df['DWS_percentile'])}%"
+    )
+
+with p3:
+
+    st.metric(
+        "WS Percentile",
+        f"{round(player_df['WS_percentile'])}%"
+    )
+
+# ---------------------------------------------------
+# PLAYER INFO
 # ---------------------------------------------------
 
 st.subheader("Player Information")
@@ -340,7 +433,7 @@ with info2:
 
     st.write(
         f"**Time on Ice:** "
-        f"{round(player_df['Time_on_ice'], 1)}"
+        f"{round(player_df['Time_on_ice'],1)}"
     )
 
 with info3:
@@ -354,66 +447,11 @@ with info4:
 
     st.write(
         f"**Net xG:** "
-        f"{round(player_df['NetxG'], 2)}"
+        f"{round(player_df['NetxG'],2)}"
     )
 
 # ---------------------------------------------------
-# RADAR CHART
-# ---------------------------------------------------
-
-st.subheader("Player Radar")
-
-radar_df = pd.DataFrame({
-
-    "Metric": [
-
-        "Goals60",
-        "Assists60",
-        "xG60",
-        "NetxG",
-        "Takeaways60",
-        "PuckBattlesWon"
-
-    ],
-
-    "Value": [
-
-        player_df["Goals60_z"],
-        player_df["Assists60_z"],
-        player_df["xG60_z"],
-        player_df["NetxG_z"],
-        player_df["Takeaways60_z"],
-        player_df["PuckBattlesWon_z"]
-
-    ]
-
-})
-
-fig = px.line_polar(
-    radar_df,
-    r="Value",
-    theta="Metric",
-    line_close=True
-)
-
-fig.update_traces(fill="toself")
-
-fig.update_layout(
-    polar=dict(
-        radialaxis=dict(
-            visible=True,
-            range=[-3, 3]
-        )
-    )
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# ---------------------------------------------------
-# ADDITIONAL STATISTICS
+# ADDITIONAL STATS
 # ---------------------------------------------------
 
 st.subheader("Additional Statistics")
@@ -453,35 +491,6 @@ st.dataframe(
     use_container_width=True,
     hide_index=True
 )
-
-# ---------------------------------------------------
-# PERCENTILES
-# ---------------------------------------------------
-
-st.subheader("League Percentiles")
-
-p1, p2, p3 = st.columns(3)
-
-with p1:
-
-    st.metric(
-        "OWS Percentile",
-        f"{round(player_df['OWS_percentile'])}%"
-    )
-
-with p2:
-
-    st.metric(
-        "DWS Percentile",
-        f"{round(player_df['DWS_percentile'])}%"
-    )
-
-with p3:
-
-    st.metric(
-        "WS Percentile",
-        f"{round(player_df['WS_percentile'])}%"
-    )
 
 # ---------------------------------------------------
 # TOP 10 WIN SHARES
