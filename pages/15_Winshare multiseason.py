@@ -4,9 +4,9 @@ import numpy as np
 from scipy.stats import zscore
 import plotly.express as px
 
-# -------------------------------------------------------
-# PAGE
-# -------------------------------------------------------
+# ---------------------------------------------------
+# PAGE CONFIG
+# ---------------------------------------------------
 
 st.set_page_config(
     page_title="Winshare Multiseason",
@@ -14,15 +14,15 @@ st.set_page_config(
     layout="wide"
 )
 
-# -------------------------------------------------------
+# ---------------------------------------------------
 # FILE
-# -------------------------------------------------------
+# ---------------------------------------------------
 
 FILE = "Sdhl 2023-2026_players_teams.xlsx"
 
-# -------------------------------------------------------
+# ---------------------------------------------------
 # LOAD DATA
-# -------------------------------------------------------
+# ---------------------------------------------------
 
 @st.cache_data
 def load_data():
@@ -52,11 +52,17 @@ def load_data():
             df.columns
             .str.strip()
             .str.replace(" ", "_")
-            .str.replace("/", "_")
+            .str.replace("/", "_per_")
             .str.replace("%", "perc")
             .str.replace("(", "", regex=False)
             .str.replace(")", "", regex=False)
 
+        )
+
+        df.columns = (
+            df.columns
+            .str.replace("__", "_")
+            .str.replace("__", "_")
         )
 
         return df
@@ -86,16 +92,18 @@ def load_data():
     # TEAM STATS
     # ---------------------------------------------------
 
-    teams["Goals_For_Per_Game"] = (
+    teams["GPG"] = (
         teams["Goal_for"] / teams["GP"]
     )
 
-    teams["Goals_Against_Per_Game"] = (
+    teams["GAPG"] = (
         teams["Goal_agn"] / teams["GP"]
     )
 
     # ---------------------------------------------------
     # MERGE
+    # IMPORTANT:
+    # MERGE WITH SEASON + TEAM
     # ---------------------------------------------------
 
     df = players.merge(
@@ -105,26 +113,13 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # NUMERIC
+    # FIX POSITIONS
     # ---------------------------------------------------
 
-    numeric_cols = df.select_dtypes(
-        include=np.number
-    ).columns
-
-    df[numeric_cols] = (
-        df[numeric_cols]
-        .fillna(0)
-    )
-
-    # ---------------------------------------------------
-    # TOI
-    # ---------------------------------------------------
-
-    df["Time_on_ice"] = (
-        df["Time_on_ice"]
-        .replace(0, np.nan)
-    )
+    df.loc[
+        df["Player"] == "Elisa Holopainen",
+        "Position"
+    ] = "F"
 
     # ---------------------------------------------------
     # FIND NET XG COLUMN
@@ -138,84 +133,63 @@ def load_data():
 
     ][0]
 
+    # ---------------------------------------------------
+    # RENAME IMPORTANT COLUMNS
+    # ---------------------------------------------------
+
+    rename_dict = {
+
+        # OFFENSE
+        "Goals_per_60": "Goals60",
+        "Assists_per_60": "Assists60",
+        "xG_per_60": "xG60",
+
+        # DEFENSE
+        "Takeaways_per_60": "Takeaways60",
+        "Puck_losses_per_60": "PuckLosses60",
+        "Net_penalties_per_60": "NetPenalties60",
+
+        # OTHER
+        "Passes_to_the_slot": "SlotPasses",
+        "Puck_battles_won": "PuckBattlesWon"
+
+    }
+
+    df = df.rename(columns=rename_dict)
+
+    # ---------------------------------------------------
+    # CREATE NETXG
+    # ---------------------------------------------------
+
     df["NetxG"] = df[netxg_col]
 
     # ---------------------------------------------------
-    # PER60
+    # FILL NAN
     # ---------------------------------------------------
 
-    df["Goals60"] = (
-        df["Goals"] /
-        df["Time_on_ice"]
-    ) * 60
+    numeric_cols = df.select_dtypes(
+        include=np.number
+    ).columns
 
-    df["Assists60"] = (
-        df["Assists"] /
-        df["Time_on_ice"]
-    ) * 60
-
-    df["xG60"] = (
-        df["xG_Expected_goals"] /
-        df["Time_on_ice"]
-    ) * 60
-
-    df["Takeaways60"] = (
-        df["Takeaways"] /
-        df["Time_on_ice"]
-    ) * 60
-
-    df["PuckLosses60"] = (
-        df["Puck_losses"] /
-        df["Time_on_ice"]
-    ) * 60
-
-    df["NetPenalties60"] = (
-
-        (
-            df["Penalties_drawn"] -
-            df["Penalties"]
-        )
-
-        /
-
-        df["Time_on_ice"]
-
-    ) * 60
-
-    df["SlotPasses"] = (
-        df["Passes_to_the_slot"]
+    df[numeric_cols] = (
+        df[numeric_cols]
+        .fillna(0)
     )
-
-    df["PuckBattlesWon"] = (
-        df["Puck_battles_won"]
-    )
-
-    # ---------------------------------------------------
-    # CLEAN NAN
-    # ---------------------------------------------------
-
-    df = df.replace(
-        [np.inf, -np.inf],
-        np.nan
-    )
-
-    df = df.fillna(0)
 
     # ---------------------------------------------------
     # METRICS
     # ---------------------------------------------------
 
-    offensive_metrics = [
+    metrics = [
 
+        # OFFENSE
         "Goals60",
         "Assists60",
         "xG60",
-        "SlotPasses"
+        "Scoring_chances",
+        "SlotPasses",
 
-    ]
-
-    defensive_metrics = [
-
+        # DEFENSE
         "NetxG",
         "Takeaways60",
         "PuckLosses60",
@@ -228,10 +202,12 @@ def load_data():
     # STORE RESULTS
     # ---------------------------------------------------
 
-    all_seasons = []
+    all_results = []
 
     # ---------------------------------------------------
     # SINGLE SEASON ENGINE
+    # IMPORTANT:
+    # SAME LOGIC AS OLD MODEL
     # ---------------------------------------------------
 
     seasons = sorted(
@@ -240,30 +216,45 @@ def load_data():
 
     for season in seasons:
 
+        # ---------------------------------------------------
+        # FILTER SINGLE SEASON
+        # ---------------------------------------------------
+
         season_df = df[
             df["Season"] == season
         ].copy()
 
         # ---------------------------------------------------
-        # POSITION ADJUSTED Z-SCORES
+        # CREATE EMPTY Z COLUMNS
         # ---------------------------------------------------
 
-        for metric in offensive_metrics + defensive_metrics:
+        for metric in metrics:
 
             season_df[f"{metric}_z"] = 0.0
 
-            for position in ["F", "D"]:
+        # ---------------------------------------------------
+        # POSITION-ADJUSTED Z-SCORES
+        # ---------------------------------------------------
 
-                mask = (
-                    season_df["Position"] == position
-                )
+        for position in ["F", "D"]:
 
-                values = season_df.loc[
-                    mask,
-                    metric
-                ]
+            pos_mask = (
+                season_df["Position"] == position
+            )
 
-                if len(values) > 1:
+            for metric in metrics:
+
+                if metric in season_df.columns:
+
+                    values = season_df.loc[
+                        pos_mask,
+                        metric
+                    ]
+
+                    # IMPORTANT:
+                    # SAME ZSCORE LOGIC
+                    # NO CLIPPING
+                    # NO MODIFICATIONS
 
                     z_values = zscore(values)
 
@@ -272,9 +263,45 @@ def load_data():
                     )
 
                     season_df.loc[
-                        mask,
+                        pos_mask,
                         f"{metric}_z"
-                    ] = z_values
+                    ] = z_values.astype(float)
+
+        # ---------------------------------------------------
+        # LEAGUE AVERAGES
+        # ---------------------------------------------------
+
+        league_gpg = (
+            season_df["GPG"].mean()
+        )
+
+        league_gapg = (
+            season_df["GAPG"].mean()
+        )
+
+        # ---------------------------------------------------
+        # TEAM ADJUSTMENTS
+        # ---------------------------------------------------
+
+        season_df["Team_Off_Strength"] = (
+
+            season_df["GPG"]
+
+            /
+
+            league_gpg
+
+        )
+
+        season_df["Team_Def_Strength"] = (
+
+            league_gapg
+
+            /
+
+            season_df["GAPG"]
+
+        )
 
         # ---------------------------------------------------
         # RAW OWS
@@ -294,6 +321,8 @@ def load_data():
 
         # ---------------------------------------------------
         # RAW DWS
+        # IMPORTANT:
+        # KEEP ORIGINAL WEIGHTS
         # ---------------------------------------------------
 
         season_df["Raw_DWS"] = (
@@ -311,38 +340,8 @@ def load_data():
         )
 
         # ---------------------------------------------------
-        # TEAM ADJUSTMENT
+        # TEAM-ADJUSTED WIN SHARES
         # ---------------------------------------------------
-
-        league_gf = (
-            season_df["Goals_For_Per_Game"]
-            .mean()
-        )
-
-        league_ga = (
-            season_df["Goals_Against_Per_Game"]
-            .mean()
-        )
-
-        season_df["Team_Off_Strength"] = (
-
-            season_df["Goals_For_Per_Game"]
-
-            /
-
-            league_gf
-
-        )
-
-        season_df["Team_Def_Strength"] = (
-
-            league_ga
-
-            /
-
-            season_df["Goals_Against_Per_Game"]
-
-        )
 
         season_df["OWS"] = (
 
@@ -378,7 +377,11 @@ def load_data():
 
         # ---------------------------------------------------
         # TOI STABILIZATION
+        # IMPORTANT:
+        # SAME AS OLD MODEL
         # ---------------------------------------------------
+
+        K = 400
 
         season_df["TOI_Factor"] = (
 
@@ -387,7 +390,7 @@ def load_data():
             /
 
             (
-                season_df["Time_on_ice"] + 400
+                season_df["Time_on_ice"] + K
             )
 
         )
@@ -403,51 +406,71 @@ def load_data():
         )
 
         # ---------------------------------------------------
-        # FINAL WS
+        # TOTAL WIN SHARES
+        # IMPORTANT:
+        # SAME AS OLD MODEL
         # ---------------------------------------------------
 
         season_df["WS"] = (
-
-            season_df["OWS"]
-
-            +
-
+            season_df["OWS"] +
             season_df["DWS"]
-
         )
 
         # ---------------------------------------------------
-        # PERCENTILE
+        # PERCENTILES
         # ---------------------------------------------------
+
+        season_df["OWS_percentile"] = (
+            season_df["OWS"]
+            .rank(pct=True) * 100
+        )
+
+        season_df["DWS_percentile"] = (
+            season_df["DWS"]
+            .rank(pct=True) * 100
+        )
 
         season_df["WS_percentile"] = (
-
             season_df["WS"]
-            .rank(pct=True)
-
-            * 100
-
+            .rank(pct=True) * 100
         )
 
         # ---------------------------------------------------
-        # RANK
+        # RANKS
         # ---------------------------------------------------
 
-        season_df["WS_rank"] = (
+        season_df["OWS_rank"] = (
+            season_df["OWS"]
+            .rank(
+                ascending=False,
+                method="min"
+            )
+            .astype(int)
+        )
 
+        season_df["DWS_rank"] = (
+            season_df["DWS"]
+            .rank(
+                ascending=False,
+                method="min"
+            )
+            .astype(int)
+        )
+
+        season_df["WS_rank"] = (
             season_df["WS"]
             .rank(
                 ascending=False,
                 method="min"
             )
-
-        ).astype(int)
+            .astype(int)
+        )
 
         # ---------------------------------------------------
         # STORE
         # ---------------------------------------------------
 
-        all_seasons.append(
+        all_results.append(
             season_df
         )
 
@@ -456,23 +479,27 @@ def load_data():
     # ---------------------------------------------------
 
     final_df = pd.concat(
-        all_seasons,
+        all_results,
         ignore_index=True
     )
 
     return final_df
 
-# -------------------------------------------------------
-# LOAD
-# -------------------------------------------------------
+# ---------------------------------------------------
+# LOAD DATA
+# ---------------------------------------------------
 
 df = load_data()
 
-# -------------------------------------------------------
-# FILTERS
-# -------------------------------------------------------
+# ---------------------------------------------------
+# TITLE
+# ---------------------------------------------------
 
 st.title("🏒 Winshare Multiseason")
+
+# ---------------------------------------------------
+# FILTERS
+# ---------------------------------------------------
 
 c1, c2, c3 = st.columns(3)
 
@@ -502,12 +529,14 @@ with c3:
         ["All", "F", "D"]
     )
 
-# -------------------------------------------------------
-# FILTER DF
-# -------------------------------------------------------
+# ---------------------------------------------------
+# FILTER DATA
+# ---------------------------------------------------
 
-filtered_df = df[
-    df["Season"] == season_filter
+filtered_df = df.copy()
+
+filtered_df = filtered_df[
+    filtered_df["Season"] == season_filter
 ]
 
 if team_filter != "All":
@@ -522,9 +551,9 @@ if position_filter != "All":
         filtered_df["Position"] == position_filter
     ]
 
-# -------------------------------------------------------
+# ---------------------------------------------------
 # TOP TABLE
-# -------------------------------------------------------
+# ---------------------------------------------------
 
 st.subheader("Top Win Shares")
 
@@ -552,182 +581,3 @@ st.dataframe(
     use_container_width=True,
     hide_index=True
 )
-
-# -------------------------------------------------------
-# PLAYER SELECT
-# -------------------------------------------------------
-
-player = st.selectbox(
-    "Select Player",
-    sorted(filtered_df["Player"].unique())
-)
-
-player_df = filtered_df[
-    filtered_df["Player"] == player
-].iloc[0]
-
-# -------------------------------------------------------
-# PLAYER HEADER
-# -------------------------------------------------------
-
-st.subheader(
-
-    f"{player_df['Player']} | "
-
-    f"{player_df['Team']} | "
-
-    f"{player_df['Season']} | "
-
-    f"{player_df['Position']}"
-
-)
-
-# -------------------------------------------------------
-# METRICS
-# -------------------------------------------------------
-
-m1, m2, m3 = st.columns(3)
-
-with m1:
-
-    st.metric(
-        "OWS",
-        round(player_df["OWS"], 2)
-    )
-
-with m2:
-
-    st.metric(
-        "DWS",
-        round(player_df["DWS"], 2)
-    )
-
-with m3:
-
-    st.metric(
-        "WS",
-        f"{round(player_df['WS'],2)} "
-        f"(#{player_df['WS_rank']})"
-    )
-
-# -------------------------------------------------------
-# PERCENTILES
-# -------------------------------------------------------
-
-p1, p2, p3 = st.columns(3)
-
-with p1:
-
-    st.metric(
-        "OWS Percentile",
-        f"{round(filtered_df['OWS'].rank(pct=True)[player_df.name]*100,1)}%"
-    )
-
-with p2:
-
-    st.metric(
-        "DWS Percentile",
-        f"{round(filtered_df['DWS'].rank(pct=True)[player_df.name]*100,1)}%"
-    )
-
-with p3:
-
-    st.metric(
-        "WS Percentile",
-        f"{round(player_df['WS_percentile'],1)}%"
-    )
-
-# -------------------------------------------------------
-# PLAYER INFO
-# -------------------------------------------------------
-
-st.subheader("Player Information")
-
-i1, i2, i3, i4 = st.columns(4)
-
-with i1:
-    st.write(f"Games Played: {player_df['played']}")
-
-with i2:
-    st.write(f"Time on Ice: {round(player_df['Time_on_ice'],1)}")
-
-with i3:
-    st.write(f"Points: {player_df['Points']}")
-
-with i4:
-    st.write(f"Net xG: {round(player_df['NetxG'],1)}")
-
-# -------------------------------------------------------
-# ADDITIONAL STATS
-# -------------------------------------------------------
-
-st.subheader("Additional Statistics")
-
-extra_stats = pd.DataFrame({
-
-    "Statistic": [
-
-        "Goals/60",
-        "Assists/60",
-        "xG/60",
-        "Takeaways/60",
-        "Puck Losses/60",
-        "Net Penalties/60",
-        "Puck Battles Won",
-        "Slot Passes"
-
-    ],
-
-    "Value": [
-
-        round(player_df["Goals60"], 2),
-        round(player_df["Assists60"], 2),
-        round(player_df["xG60"], 2),
-        round(player_df["Takeaways60"], 2),
-        round(player_df["PuckLosses60"], 2),
-        round(player_df["NetPenalties60"], 2),
-        round(player_df["PuckBattlesWon"], 0),
-        round(player_df["SlotPasses"], 0)
-
-    ]
-
-})
-
-st.dataframe(
-    extra_stats,
-    use_container_width=True,
-    hide_index=True
-)
-
-# -------------------------------------------------------
-# CAREER TREND
-# -------------------------------------------------------
-
-career_df = (
-
-    df[
-        df["Player"] == player
-    ]
-
-    .sort_values("Season")
-
-)
-
-if len(career_df) > 1:
-
-    st.subheader("Career Trend")
-
-    fig = px.line(
-
-        career_df,
-
-        x="Season",
-        y="WS",
-        markers=True
-
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
