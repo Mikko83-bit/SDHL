@@ -656,14 +656,52 @@ st.divider()
 
 st.header("Player Career Trend")
 
-players_list = sorted(
-    final_df["Player"].dropna().unique()
+# =====================================================
+# TEAM FILTER
+# =====================================================
+
+career_team = st.selectbox(
+    "Choose Team",
+    ["All"] + sorted(
+        final_df["Team"].dropna().unique()
+    )
 )
+
+# =====================================================
+# FILTER PLAYERS BY TEAM
+# =====================================================
+
+if career_team == "All":
+
+    players_list = sorted(
+        final_df["Player"].dropna().unique()
+    )
+
+else:
+
+    players_list = sorted(
+
+        final_df[
+            final_df["Team"] == career_team
+        ]["Player"]
+
+        .dropna()
+        .unique()
+
+    )
+
+# =====================================================
+# PLAYER SELECT
+# =====================================================
 
 selected_player = st.selectbox(
     "Choose Player",
     players_list
 )
+
+# =====================================================
+# PLAYER DATA
+# =====================================================
 
 player_df = final_df[
     final_df["Player"] == selected_player
