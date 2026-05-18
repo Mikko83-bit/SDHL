@@ -1,6 +1,6 @@
 # =========================================================
 # WINSHARE MULTISEASON
-# FIXED VERSION
+# FULL FIXED VERSION
 # =========================================================
 
 import streamlit as st
@@ -34,11 +34,12 @@ def clean_columns(df):
         df.columns
         .str.strip()
         .str.replace(" ", "_")
-        .str.replace("/", "_per_")
+        .str.replace("/", "_")
         .str.replace("%", "perc")
         .str.replace("-", "_")
         .str.replace("(", "", regex=False)
         .str.replace(")", "", regex=False)
+        .str.replace(".", "", regex=False)
     )
 
     return df
@@ -51,21 +52,33 @@ def safe_zscore(series):
         errors="coerce"
     ).fillna(0)
 
-    if series.std() == 0:
+    if len(series.unique()) <= 1:
         return np.zeros(len(series))
 
     return zscore(series)
 
 
+def find_column(df, keywords):
+
+    for col in df.columns:
+
+        col_lower = col.lower()
+
+        if all(k.lower() in col_lower for k in keywords):
+            return col
+
+    return None
+
+
 # =========================================================
-# LOAD
+# LOAD DATA
 # =========================================================
 
 @st.cache_data
 def load_data():
 
     # =====================================================
-    # READ
+    # READ EXCEL
     # =====================================================
 
     players = pd.read_excel(
@@ -79,7 +92,7 @@ def load_data():
     )
 
     # =====================================================
-    # CLEAN
+    # CLEAN COLUMNS
     # =====================================================
 
     players = clean_columns(players)
@@ -118,13 +131,31 @@ def load_data():
     # =====================================================
 
     teams["GPG"] = (
-        teams["Goal_for"] /
-        teams["GP"]
+        pd.to_numeric(
+            teams["Goal_for"],
+            errors="coerce"
+        ).fillna(0)
+
+        /
+
+        pd.to_numeric(
+            teams["GP"],
+            errors="coerce"
+        ).fillna(1)
     )
 
     teams["GAPG"] = (
-        teams["Goal_agn"] /
-        teams["GP"]
+        pd.to_numeric(
+            teams["Goal_agn"],
+            errors="coerce"
+        ).fillna(0)
+
+        /
+
+        pd.to_numeric(
+            teams["GP"],
+            errors="coerce"
+        ).fillna(1)
     )
 
     # =====================================================
@@ -141,49 +172,130 @@ def load_data():
     # FIND IMPORTANT COLUMNS
     # =====================================================
 
-    def find_col(keyword):
+    TOI_COL = find_column(df, ["time", "ice"])
 
-        for c in df.columns:
+    XG_COL = find_column(df, ["expected", "goals"])
 
-            if keyword.lower() in c.lower():
-                return c
+    TAKEAWAYS_COL = find_column(df, ["takeaways"])
 
-        return None
+    PUCKLOSS_COL = find_column(df, ["puck", "loss"])
 
-    NETXG_COL = find_col("Net_xG")
-    CORSI_COL = find_col("CORSI")
-    FENWICK_COL = find_col("Fenwick")
+    SLOTPASS_COL = find_column(df, ["passes", "slot"])
+
+    BATTLE_COL = find_column(df, ["puck", "battles"])
+
+    NETXG_COL = find_column(df, ["net", "xg"])
+
+    CORSI_COL = find_column(df, ["corsi"])
 
     # =====================================================
-    # CREATE METRICS
+    # TOI
     # =====================================================
 
-    df["Goals60"] = pd.to_numeric(
-        df["Goals_per_60"],
+    df["TOI"] = pd.to_numeric(
+        df[TOI_COL],
         errors="coerce"
     ).fillna(0)
 
-    df["Assists60"] = pd.to_numeric(
-        df["Assists_per_60"],
+    # avoid divide by zero
+    df["TOI"] = df["TOI"].replace(0, np.nan)
+
+    # =====================================================
+    # BASIC STATS
+    # =====================================================
+
+    df["Goals"] = pd.to_numeric(
+        df["Goals"],
         errors="coerce"
     ).fillna(0)
 
-    df["xG60"] = pd.to_numeric(
-        df["x_Expected_goals_per_60"],
+    df["Assists"] = pd.to_numeric(
+        df["Assists"],
         errors="coerce"
     ).fillna(0)
 
-    df["Takeaways60"] = pd.to_numeric(
-        df["Takeaways_per_60"],
+    # =====================================================
+    # PER 60
+    # =====================================================
+
+    df["Goals60"] = (
+        df["Goals"] / df["TOI"]
+    ) * 60
+
+    df["Assists60"] = (
+        df["Assists"] / df["TOI"]
+    ) * 60
+
+    # =====================================================
+    # XG
+    # =====================================================
+
+    df["xG"] = pd.to_numeric(
+        df[XG_COL],
         errors="coerce"
     ).fillna(0)
 
-    df["PuckLosses60"] = pd.to_numeric(
-        df["Puck_losses_per_60"],
+    df["xG60"] = (
+        df["xG"] / df["TOI"]
+    ) * 60
+
+    # =====================================================
+    # TAKEAWAYS
+    # =====================================================
+
+    df["Takeaways"] = pd.to_numeric(
+        df[TAKEAWAYS_COL],
         errors="coerce"
     ).fillna(0)
 
-    df["NetPenalties60"] = (
+    df["Takeaways60"] = (
+        df["Takeaways"] / df["TOI"]
+    ) * 60
+
+    # =====================================================
+    # PUCK LOSSES
+    # =====================================================
+
+    df["PuckLosses"] = pd.to_numeric(
+        df[PUCKLOSS_COL],
+        errors="coerce"
+    ).fillna(0)
+
+    df["PuckLosses60"] = (
+        df["PuckLosses"] / df["TOI"]
+    ) * 60
+
+    # =====================================================
+    # SLOT PASSES
+    # =====================================================
+
+    df["SlotPasses"] = pd.to_numeric(
+        df[SLOTPASS_COL],
+        errors="coerce"
+    ).fillna(0)
+
+    df["SlotPasses60"] = (
+        df["SlotPasses"] / df["TOI"]
+    ) * 60
+
+    # =====================================================
+    # PUCK BATTLES
+    # =====================================================
+
+    df["PuckBattlesWon"] = pd.to_numeric(
+        df[BATTLE_COL],
+        errors="coerce"
+    ).fillna(0)
+
+    df["PuckBattlesWon60"] = (
+        df["PuckBattlesWon"] / df["TOI"]
+    ) * 60
+
+    # =====================================================
+    # NET PENALTIES
+    # =====================================================
+
+    df["NetPenalties"] = (
 
         pd.to_numeric(
             df["Penalties_drawn"],
@@ -199,15 +311,13 @@ def load_data():
 
     )
 
-    df["SlotPasses"] = pd.to_numeric(
-        df["Passes_to_the_slot"],
-        errors="coerce"
-    ).fillna(0)
+    df["NetPenalties60"] = (
+        df["NetPenalties"] / df["TOI"]
+    ) * 60
 
-    df["PuckBattlesWon"] = pd.to_numeric(
-        df["Puck_battles_won"],
-        errors="coerce"
-    ).fillna(0)
+    # =====================================================
+    # NET XG
+    # =====================================================
 
     df["NetxG"] = pd.to_numeric(
         df[NETXG_COL],
@@ -215,24 +325,30 @@ def load_data():
     ).fillna(0)
 
     # =====================================================
-    # POSSESSION
+    # CORSI
     # =====================================================
 
     if CORSI_COL:
+
         df["Corsi"] = pd.to_numeric(
             df[CORSI_COL],
             errors="coerce"
         ).fillna(0)
+
     else:
+
         df["Corsi"] = 0
 
-    if FENWICK_COL:
-        df["Fenwick"] = pd.to_numeric(
-            df[FENWICK_COL],
-            errors="coerce"
-        ).fillna(0)
-    else:
-        df["Fenwick"] = 0
+    # =====================================================
+    # CLEAN NAN
+    # =====================================================
+
+    df = df.replace(
+        [np.inf, -np.inf],
+        0
+    )
+
+    df = df.fillna(0)
 
     # =====================================================
     # STORE
@@ -255,7 +371,7 @@ def load_data():
         ].copy()
 
         # =================================================
-        # Z-SCORE METRICS
+        # METRICS
         # =================================================
 
         metrics = [
@@ -263,18 +379,21 @@ def load_data():
             "Goals60",
             "Assists60",
             "xG60",
-            "SlotPasses",
+            "SlotPasses60",
 
             "NetxG",
             "Takeaways60",
             "PuckLosses60",
             "NetPenalties60",
-            "PuckBattlesWon",
+            "PuckBattlesWon60",
 
-            "Corsi",
-            "Fenwick"
+            "Corsi"
 
         ]
+
+        # =================================================
+        # CREATE ZSCORES
+        # =================================================
 
         for metric in metrics:
 
@@ -304,7 +423,7 @@ def load_data():
                 ] = z
 
         # =================================================
-        # TEAM OFFENSE ADJUSTMENT
+        # TEAM OFFENSE STRENGTH
         # =================================================
 
         league_gpg = (
@@ -333,14 +452,12 @@ def load_data():
 
             0.20 * season_df["xG60_z"] +
 
-            0.15 * season_df["SlotPasses_z"]
+            0.15 * season_df["SlotPasses60_z"]
 
         )
 
         # =================================================
-        # FIXED RAW DWS
-        # IMPORTANT:
-        # POSSESSION NOW INCLUDED
+        # FIXED DWS
         # =================================================
 
         season_df["Raw_DWS"] = (
@@ -353,7 +470,7 @@ def load_data():
 
             0.10 * season_df["NetPenalties60_z"] +
 
-            0.15 * season_df["PuckBattlesWon_z"] +
+            0.15 * season_df["PuckBattlesWon60_z"] +
 
             0.30 * season_df["Corsi_z"]
 
@@ -361,7 +478,7 @@ def load_data():
 
         # =================================================
         # OWS
-        # =================================================
+        # =====================================================
 
         season_df["OWS"] = (
 
@@ -379,7 +496,7 @@ def load_data():
 
         # =================================================
         # DWS
-        # =================================================
+        # =====================================================
 
         season_df["DWS"] = (
             season_df["Raw_DWS"]
@@ -387,18 +504,18 @@ def load_data():
 
         # =================================================
         # TOI STABILIZATION
-        # =================================================
+        # =====================================================
 
         K = 400
 
         season_df["TOI_Factor"] = (
 
-            season_df["Time_on_ice"]
+            season_df["TOI"]
 
             /
 
             (
-                season_df["Time_on_ice"] + K
+                season_df["TOI"] + K
             )
 
         )
@@ -415,7 +532,7 @@ def load_data():
 
         # =================================================
         # FINAL WS
-        # =================================================
+        # =====================================================
 
         season_df["WS"] = (
 
@@ -429,7 +546,7 @@ def load_data():
 
         # =================================================
         # PERCENTILES
-        # =================================================
+        # =====================================================
 
         season_df["WS_percentile"] = (
 
@@ -440,7 +557,7 @@ def load_data():
 
         # =================================================
         # STORE
-        # =================================================
+        # =====================================================
 
         all_seasons.append(
             season_df
@@ -465,7 +582,7 @@ def load_data():
 df = load_data()
 
 # =========================================================
-# FILTERS
+# UI
 # =========================================================
 
 st.title("🏒 Winshare Multiseason")
@@ -499,13 +616,11 @@ with c3:
     )
 
 # =========================================================
-# FILTER DATA
+# FILTER
 # =========================================================
 
-filtered_df = df.copy()
-
-filtered_df = filtered_df[
-    filtered_df["Season"] == season_filter
+filtered_df = df[
+    df["Season"] == season_filter
 ]
 
 if team_filter != "All":
@@ -525,7 +640,7 @@ if position_filter != "All":
 # =========================================================
 
 st.subheader(
-    f"Top Win Shares - Season {season_filter}"
+    f"Top Win Shares - {season_filter}"
 )
 
 table = (
