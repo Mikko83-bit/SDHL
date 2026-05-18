@@ -113,10 +113,8 @@ def load_data():
 
         "Takeaways_per_60": "Takeaways60",
         "Puck_losses_per_60": "PuckLosses60",
-        "Net_penalties_per_60": "NetPenalties60",
 
         "Passes_to_the_slot": "SlotPasses",
-        "Puck_battles_won": "PuckBattlesWon",
 
         "Net_xG": "NetxG"
 
@@ -151,9 +149,7 @@ def load_data():
     defensive_metrics = [
         "NetxG",
         "Takeaways60",
-        "PuckLosses60",
-        "NetPenalties60",
-        "PuckBattlesWon"
+        "PuckLosses60"
     ]
 
     offensive_metrics = [
@@ -212,7 +208,7 @@ def load_data():
         )
 
         # ---------------------------------------------------
-        # CLIP EXTREME OUTLIERS
+        # CLIP OUTLIERS
         # ---------------------------------------------------
 
         df[f"{metric}_z"] = (
@@ -221,7 +217,7 @@ def load_data():
         )
 
     # ---------------------------------------------------
-    # RAW OFFENSIVE WIN SHARES
+    # RAW OWS
     # ---------------------------------------------------
 
     df["Raw_OWS"] = (
@@ -234,16 +230,14 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # RAW DEFENSIVE WIN SHARES
+    # RAW DWS
     # ---------------------------------------------------
 
     df["Raw_DWS"] = (
 
-        0.25 * df.get("NetxG_z", 0) +
-        0.15 * df.get("Takeaways60_z", 0) -
-        0.15 * df.get("PuckLosses60_z", 0) +
-        0.05 * df.get("NetPenalties60_z", 0) +
-        0.05 * df.get("PuckBattlesWon_z", 0)
+        0.60 * df.get("NetxG_z", 0) +
+        0.20 * df.get("Takeaways60_z", 0) -
+        0.20 * df.get("PuckLosses60_z", 0)
 
     )
 
@@ -260,15 +254,15 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # OWS MORE IMPORTANT THAN DWS
+    # SCALE
     # ---------------------------------------------------
 
     df["OWS"] = (
-        df["OWS"] * 0.65
+        df["OWS"] * 0.70
     )
 
     df["DWS"] = (
-        df["DWS"] * 0.45
+        df["DWS"] * 0.30
     )
 
     # ---------------------------------------------------
@@ -300,7 +294,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # FINAL WIN SHARES
+    # FINAL WS
     # ---------------------------------------------------
 
     df["WS"] = (
@@ -460,7 +454,7 @@ st.subheader(
 )
 
 # ---------------------------------------------------
-# METRICS
+# PLAYER METRICS
 # ---------------------------------------------------
 
 m1, m2, m3 = st.columns(3)
