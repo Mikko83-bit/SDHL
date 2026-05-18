@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from scipy.stats import zscore
 import plotly.express as px
 
 # ---------------------------------------------------
@@ -42,7 +41,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # CLEAN COLUMNS
+    # CLEAN COLUMN NAMES
     # ---------------------------------------------------
 
     players.columns = (
@@ -61,6 +60,8 @@ def load_data():
         .str.replace(" ", "_")
         .str.replace("/", "_per_")
         .str.replace("%", "perc")
+        .str.replace("(", "", regex=False)
+        .str.replace(")", "", regex=False)
     )
 
     players.columns = players.columns.str.replace("__", "_")
@@ -69,18 +70,6 @@ def load_data():
     # ---------------------------------------------------
     # CLEAN TEAM + SEASON
     # ---------------------------------------------------
-
-    players["Season"] = (
-        players["Season"]
-        .astype(str)
-        .str.strip()
-    )
-
-    teams["Season"] = (
-        teams["Season"]
-        .astype(str)
-        .str.strip()
-    )
 
     players["Team"] = (
         players["Team"]
@@ -94,16 +83,48 @@ def load_data():
         .str.strip()
     )
 
+    players["Season"] = (
+        players["Season"]
+        .astype(str)
+        .str.strip()
+    )
+
+    teams["Season"] = (
+        teams["Season"]
+        .astype(str)
+        .str.strip()
+    )
+
     # ---------------------------------------------------
     # TEAM STATS
     # ---------------------------------------------------
 
     teams["GPG"] = (
-        teams["Goal_for"] / teams["GP"]
+        pd.to_numeric(
+            teams["Goal_for"],
+            errors="coerce"
+        ).fillna(0)
+
+        /
+
+        pd.to_numeric(
+            teams["GP"],
+            errors="coerce"
+        ).fillna(1)
     )
 
     teams["GAPG"] = (
-        teams["Goal_agn"] / teams["GP"]
+        pd.to_numeric(
+            teams["Goal_agn"],
+            errors="coerce"
+        ).fillna(0)
+
+        /
+
+        pd.to_numeric(
+            teams["GP"],
+            errors="coerce"
+        ).fillna(1)
     )
 
     # ---------------------------------------------------
@@ -117,7 +138,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # FIX POSITIONS
+    # FIX POSITION
     # ---------------------------------------------------
 
     df.loc[
@@ -131,17 +152,17 @@ def load_data():
 
     rename_dict = {
 
-        # OFFENSE
+        # offense
         "Goals_per_60": "Goals60",
         "Assists_per_60": "Assists60",
         "xG_per_60": "xG60",
 
-        # DEFENSE
+        # defense
         "Takeaways_per_60": "Takeaways60",
         "Puck_losses_per_60": "PuckLosses60",
         "Net_penalties_per_60": "NetPenalties60",
 
-        # OTHER
+        # other
         "Passes_to_the_slot": "SlotPasses",
         "Puck_battles_won": "PuckBattlesWon",
         "Net_xG": "NetxG"
@@ -151,23 +172,30 @@ def load_data():
     df = df.rename(columns=rename_dict)
 
     # ---------------------------------------------------
-    # NUMERIC
+    # CONVERT NUMERIC
     # ---------------------------------------------------
 
-    numeric_cols = df.select_dtypes(
-        include=np.number
-    ).columns
+    for col in df.columns:
 
-    df[numeric_cols] = (
-        df[numeric_cols]
-        .fillna(0)
-    )
+        if col not in [
+            "Player",
+            "Team",
+            "Position",
+            "Season"
+        ]:
+
+            df[col] = pd.to_numeric(
+                df[col],
+                errors="coerce"
+            )
+
+    df = df.fillna(0)
 
     # ---------------------------------------------------
-    # METRICS
+    # EXISTING METRICS ONLY
     # ---------------------------------------------------
 
-    offensive_metrics = [
+    possible_offensive = [
 
         "Goals60",
         "Assists60",
@@ -176,7 +204,7 @@ def load_data():
 
     ]
 
-    defensive_metrics = [
+    possible_defensive = [
 
         "NetxG",
         "Takeaways60",
@@ -186,13 +214,28 @@ def load_data():
 
     ]
 
+    offensive_metrics = [
+
+        x for x in possible_offensive
+        if x in df.columns
+
+    ]
+
+    defensive_metrics = [
+
+        x for x in possible_defensive
+        if x in df.columns
+
+    ]
+
     all_metrics = (
         offensive_metrics +
         defensive_metrics
     )
 
     # ---------------------------------------------------
-    # POSITION + SEASON ADJUSTED Z-SCORES
+    # Z-SCORES
+    # POSITION + SEASON ADJUSTED
     # ---------------------------------------------------
 
     for metric in all_metrics:
@@ -233,44 +276,80 @@ def load_data():
         )
 
     # ---------------------------------------------------
-    # RAW OWS
+    # RAW OFFENSE
     # ---------------------------------------------------
 
-    df["Raw_OWS"] = (
+    df["Raw_OWS"] = 0
 
-        0.35 * df["Goals60_z"] +
-        0.35 * df["Assists60_z"] +
-        0.20 * df["xG60_z"] +
-        0.10 * df["SlotPasses_z"]
+    if "Goals60_z" in df.columns:
+        df["Raw_OWS"] += (
+            0.35 * df["Goals60_z"]
+        )
 
-    )
+    if "Assists60_z" in df.columns:
+        df["Raw_OWS"] += (
+            0.35 * df["Assists60_z"]
+        )
+
+    if "xG60_z" in df.columns:
+        df["Raw_OWS"] += (
+            0.20 * df["xG60_z"]
+        )
+
+    if "SlotPasses_z" in df.columns:
+        df["Raw_OWS"] += (
+            0.10 * df["SlotPasses_z"]
+        )
 
     # ---------------------------------------------------
-    # RAW DWS
+    # RAW DEFENSE
     # ---------------------------------------------------
 
-    df["Raw_DWS"] = (
+    df["Raw_DWS"] = 0
 
-        0.50 * df["NetxG_z"] +
-        0.15 * df["Takeaways60_z"] -
-        0.15 * df["PuckLosses60_z"] +
-        0.10 * df["NetPenalties60_z"] +
-        0.10 * df["PuckBattlesWon_z"]
+    if "NetxG_z" in df.columns:
+        df["Raw_DWS"] += (
+            0.50 * df["NetxG_z"]
+        )
 
-    )
+    if "Takeaways60_z" in df.columns:
+        df["Raw_DWS"] += (
+            0.15 * df["Takeaways60_z"]
+        )
+
+    if "PuckLosses60_z" in df.columns:
+        df["Raw_DWS"] -= (
+            0.15 * df["PuckLosses60_z"]
+        )
+
+    if "NetPenalties60_z" in df.columns:
+        df["Raw_DWS"] += (
+            0.10 * df["NetPenalties60_z"]
+        )
+
+    if "PuckBattlesWon_z" in df.columns:
+        df["Raw_DWS"] += (
+            0.10 * df["PuckBattlesWon_z"]
+        )
 
     # ---------------------------------------------------
-    # TEAM ADJUSTMENT
+    # INITIALIZE
     # ---------------------------------------------------
 
     df["OWS"] = 0.0
     df["DWS"] = 0.0
+
+    # ---------------------------------------------------
+    # SEASON LOOP
+    # ---------------------------------------------------
 
     for season in df["Season"].unique():
 
         season_mask = (
             df["Season"] == season
         )
+
+        # league averages
 
         league_gpg = (
             df.loc[
@@ -286,20 +365,26 @@ def load_data():
             ].mean()
         )
 
-        # TEAM STRENGTH
+        # team strengths
 
         off_strength = (
 
             df.loc[
                 season_mask,
                 "GPG"
-            ] / league_gpg
+            ]
+
+            /
+
+            league_gpg
 
         )
 
         def_strength = (
 
-            league_gapg /
+            league_gapg
+
+            /
 
             df.loc[
                 season_mask,
@@ -308,7 +393,7 @@ def load_data():
 
         )
 
-        # TEAM ADJUSTED
+        # adjusted
 
         df.loc[
             season_mask,
@@ -353,11 +438,14 @@ def load_data():
     SCALE = 1.8
 
     df["OWS"] = (
-        (df["OWS"] + 2) * SCALE
+        (df["OWS"] + 2)
+        * SCALE
     )
 
     df["DWS"] = (
-        (df["DWS"] + 2) * SCALE * 0.8
+        (df["DWS"] + 2)
+        * SCALE
+        * 0.8
     )
 
     # ---------------------------------------------------
@@ -373,17 +461,23 @@ def load_data():
 
     K = 250
 
-    df["TOI_Factor"] = (
+    if "Time_on_ice" in df.columns:
 
-        df["Time_on_ice"]
+        df["TOI_Factor"] = (
 
-        /
+            df["Time_on_ice"]
 
-        (
-            df["Time_on_ice"] + K
+            /
+
+            (
+                df["Time_on_ice"] + K
+            )
+
         )
 
-    )
+    else:
+
+        df["TOI_Factor"] = 1
 
     df["OWS"] = (
         df["OWS"] *
@@ -412,7 +506,9 @@ def load_data():
 
         df.groupby("Season")["OWS"]
 
-        .rank(pct=True) * 100
+        .rank(pct=True)
+
+        * 100
 
     )
 
@@ -420,7 +516,9 @@ def load_data():
 
         df.groupby("Season")["DWS"]
 
-        .rank(pct=True) * 100
+        .rank(pct=True)
+
+        * 100
 
     )
 
@@ -428,12 +526,14 @@ def load_data():
 
         df.groupby("Season")["WS"]
 
-        .rank(pct=True) * 100
+        .rank(pct=True)
+
+        * 100
 
     )
 
     # ---------------------------------------------------
-    # RANKS
+    # RANKINGS
     # ---------------------------------------------------
 
     df["OWS_rank"] = (
@@ -471,7 +571,6 @@ def load_data():
 
     return df
 
-
 # ---------------------------------------------------
 # LOAD
 # ---------------------------------------------------
@@ -488,18 +587,18 @@ st.title("🏒 Winshare Multiseason")
 # FILTERS
 # ---------------------------------------------------
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-with col1:
+with c1:
 
     season_filter = st.selectbox(
         "Season",
         sorted(df["Season"].unique())
     )
 
-with col2:
+with c2:
 
-    teams = sorted(
+    team_options = sorted(
 
         df[
             df["Season"] == season_filter
@@ -509,17 +608,17 @@ with col2:
 
     team_filter = st.selectbox(
         "Team",
-        ["All"] + teams
+        ["All"] + team_options
     )
 
-with col3:
+with c3:
 
     position_filter = st.selectbox(
         "Position",
         ["All", "F", "D"]
     )
 
-with col4:
+with c4:
 
     min_games = st.slider(
         "Minimum Games",
@@ -650,13 +749,11 @@ career_df = df[
 ].sort_values("Season")
 
 fig = px.line(
-
     career_df,
     x="Season",
     y="WS",
     markers=True,
     hover_data=["OWS", "DWS"]
-
 )
 
 st.plotly_chart(
@@ -670,7 +767,7 @@ st.plotly_chart(
 
 st.subheader("Top 10 Win Shares")
 
-top_ws = (
+top_df = (
 
     filtered_df[[
         "Player",
@@ -691,7 +788,7 @@ top_ws = (
 )
 
 st.dataframe(
-    top_ws,
+    top_df,
     use_container_width=True,
     hide_index=True
 )
