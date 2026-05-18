@@ -41,7 +41,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # CLEAN COLUMNS
+    # CLEAN COLUMN NAMES
     # ---------------------------------------------------
 
     players.columns = (
@@ -65,7 +65,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # CLEAN TEAM + SEASON
+    # CLEAN STRINGS
     # ---------------------------------------------------
 
     for df_ in [players, teams]:
@@ -83,25 +83,13 @@ def load_data():
         )
 
     # ---------------------------------------------------
-    # TEAM STATS
-    # ---------------------------------------------------
-
-    teams["GPG"] = (
-        teams["Goal_for"] / teams["GP"]
-    )
-
-    teams["GAPG"] = (
-        teams["Goal_agn"] / teams["GP"]
-    )
-
-    # ---------------------------------------------------
     # MERGE
     # ---------------------------------------------------
 
     df = players.merge(
         teams,
         on=["Season", "Team"],
-        how="inner"
+        how="left"
     )
 
     # ---------------------------------------------------
@@ -114,7 +102,7 @@ def load_data():
     ] = "F"
 
     # ---------------------------------------------------
-    # RENAME COLUMNS
+    # RENAME IMPORTANT COLUMNS
     # ---------------------------------------------------
 
     rename_dict = {
@@ -168,10 +156,6 @@ def load_data():
         "PuckBattlesWon"
     ]
 
-    # ---------------------------------------------------
-    # KEEP ONLY EXISTING
-    # ---------------------------------------------------
-
     offensive_metrics = [
         x for x in offensive_metrics
         if x in df.columns
@@ -188,7 +172,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # POSITION + SEASON Z-SCORES
+    # POSITION + SEASON ADJUSTED Z-SCORES
     # ---------------------------------------------------
 
     for metric in all_metrics:
@@ -218,7 +202,9 @@ def load_data():
         df[f"{metric}_z"] = (
 
             df[f"{metric}_z"]
+
             .replace([np.inf, -np.inf], 0)
+
             .fillna(0)
 
         )
@@ -251,125 +237,35 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # INITIALIZE
+    # WITHOUT TEAM ADJUSTMENT
     # ---------------------------------------------------
 
-    df["OWS"] = 0.0
-    df["DWS"] = 0.0
+    df["OWS"] = df["Raw_OWS"]
+    df["DWS"] = df["Raw_DWS"]
 
     # ---------------------------------------------------
-    # TEAM ADJUSTMENT
+    # SHIFT TO POSITIVE SCALE
     # ---------------------------------------------------
 
-    for season in df["Season"].unique():
+    df["OWS"] = (
+        df["OWS"] + 2
+    )
 
-        season_mask = (
-            df["Season"] == season
-        )
-
-        league_gpg = (
-            df.loc[
-                season_mask,
-                "GPG"
-            ].mean()
-        )
-
-        league_gapg = (
-            df.loc[
-                season_mask,
-                "GAPG"
-            ].mean()
-        )
-
-        off_strength = (
-
-            df.loc[
-                season_mask,
-                "GPG"
-            ]
-
-            / league_gpg
-
-        )
-
-        def_strength = (
-
-            league_gapg
-
-            / df.loc[
-                season_mask,
-                "GAPG"
-            ]
-
-        )
-
-        # OWS
-
-        df.loc[
-            season_mask,
-            "OWS"
-        ] = (
-
-            df.loc[
-                season_mask,
-                "Raw_OWS"
-            ]
-
-            -
-
-            (
-                (
-                    off_strength - 1
-                ) * 0.50
-            )
-
-        )
-
-        # DWS
-
-        df.loc[
-            season_mask,
-            "DWS"
-        ] = (
-
-            df.loc[
-                season_mask,
-                "Raw_DWS"
-            ]
-
-            -
-
-            (
-                (
-                    def_strength - 1
-                ) * 0.35
-            )
-
-        )
+    df["DWS"] = (
+        df["DWS"] + 2
+    )
 
     # ---------------------------------------------------
     # SCALE
     # ---------------------------------------------------
 
-    SCALE = 1.8
-
     df["OWS"] = (
-        (df["OWS"] + 2)
-        * SCALE
+        df["OWS"] * 0.60
     )
 
     df["DWS"] = (
-        (df["DWS"] + 2)
-        * SCALE
-        * 0.8
+        df["DWS"] * 0.60
     )
-
-    # ---------------------------------------------------
-    # FLOOR
-    # ---------------------------------------------------
-
-    df["OWS"] = df["OWS"].clip(lower=0)
-    df["DWS"] = df["DWS"].clip(lower=0)
 
     # ---------------------------------------------------
     # TOI STABILIZATION
@@ -483,7 +379,7 @@ with c3:
     )
 
 # ---------------------------------------------------
-# FILTER
+# FILTER DATA
 # ---------------------------------------------------
 
 filtered_df = df.copy()
@@ -549,14 +445,19 @@ player_df = filtered_df[
 ].iloc[0]
 
 # ---------------------------------------------------
-# PLAYER INFO
+# PLAYER HEADER
 # ---------------------------------------------------
 
 st.subheader(
     f"{player_df['Player']} | "
     f"{player_df['Team']} | "
-    f"{player_df['Season']}"
+    f"{player_df['Season']} | "
+    f"{player_df['Position']}"
 )
+
+# ---------------------------------------------------
+# METRICS
+# ---------------------------------------------------
 
 m1, m2, m3 = st.columns(3)
 
@@ -564,36 +465,44 @@ with m1:
 
     st.metric(
         "OWS",
-        round(player_df["OWS"], 2)
+        f"{player_df['OWS']:.2f} "
+        f"(#{int(player_df['WS_rank'])})"
     )
 
 with m2:
 
     st.metric(
         "DWS",
-        round(player_df["DWS"], 2)
+        f"{player_df['DWS']:.2f}"
     )
 
 with m3:
 
     st.metric(
         "WS",
-        round(player_df["WS"], 2)
+        f"{player_df['WS']:.2f}"
     )
 
 # ---------------------------------------------------
 # CAREER TREND
 # ---------------------------------------------------
 
-career_df = df[
-    df["Player"] == player
-].sort_values("Season")
+career_df = (
+
+    df[
+        df["Player"] == player
+    ]
+
+    .sort_values("Season")
+
+)
 
 fig = px.line(
     career_df,
     x="Season",
     y="WS",
-    markers=True
+    markers=True,
+    title="Career Trend"
 )
 
 st.plotly_chart(
