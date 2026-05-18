@@ -8,7 +8,7 @@ from scipy.stats import zscore
 # =========================================================
 
 st.set_page_config(
-    page_title="SDHL Player Profiles - Multiseason",
+    page_title="SDHL Player Profiles - Multiseason Engine",
     page_icon="🏒",
     layout="wide"
 )
@@ -33,6 +33,7 @@ def clean_columns(df):
         .str.replace("(", "", regex=False)
         .str.replace(")", "", regex=False)
         .str.replace("-", "_")
+        .str.replace(",", "")
     )
     return df
 
@@ -69,28 +70,38 @@ def load_data():
     # MERGE BY SEASON + TEAM
     df = players.merge(teams, on=["Season", "Team"], how="left")
 
-    # FIX PLAYER POSITIONS (Alkuperäinen fiksi)
+    # FIX PLAYER POSITIONS
     df.loc[df["Player"] == "Elisa Holopainen", "Position"] = "F"
 
-    # RENAME IMPORTANT COLUMNS
-    rename_map = {
-        "Goals_per_60": "Goals60",
-        "Assists_per_60": "Assists60",
-        "xG_per_60": "xG60",
-        "Takeaways_per_60": "Takeaways60",
-        "Puck_losses_per_60": "PuckLosses60",
-        "Net_penalties_per_60": "NetPenalties60",
-        "Passes_to_the_slot": "SlotPasses",
-        "Puck_battles_won": "PuckBattlesWon"
-    }
-    df = df.rename(columns=rename_map)
-
-    # FIND NET XG COLUMN
-    netxg_candidates = [c for c in df.columns if "Net" in c and "xG" in c]
-    if netxg_candidates:
-        df["NetxG"] = df[netxg_candidates[0]]
+    # =====================================================
+    # LASKETAAN LUVUT JA PER 60 -METRIIKAT SUORAAN DATASTA
+    # =====================================================
+    
+    # 1. NetxG haku (Otetaan Excelin sarake "Net_xG_xG_player_on_0_opp._team's_xG")
+    netxg_cols = [c for c in df.columns if "Net_xG" in c]
+    if netxg_cols:
+        df["NetxG"] = df[netxg_cols[0]]
     else:
         df["NetxG"] = 0.0
+
+    # 2. Jäähytasapaino (Koska "Net_penalties" puuttuu, lasketaan: hankitut jäähyt - otetut jäähyt)
+    if "Penalties_drawn" in df.columns and "Penalties" in df.columns:
+        df["Net_penalties_raw"] = df["Penalties_drawn"] - df["Penalties"]
+    else:
+        df["Net_penalties_raw"] = 0.0
+
+    # Luodaan puuttuvat /60-sarakkeet lennossa (jaettuna peliajalla ja kerrottuna 60:llä)
+    # Suojataan nollalla jakamiselta (np.where)
+    df["Goals60"] = np.where(df["Time_on_ice"] > 0, (df["Goals"] / df["Time_on_ice"]) * 60, 0.0)
+    df["Assists60"] = np.where(df["Time_on_ice"] > 0, (df["Assists"] / df["Time_on_ice"]) * 60, 0.0)
+    df["xG60"] = np.where(df["Time_on_ice"] > 0, (df["xG_Expected_goals"] / df["Time_on_ice"]) * 60, 0.0)
+    df["Takeaways60"] = np.where(df["Time_on_ice"] > 0, (df["Takeaways"] / df["Time_on_ice"]) * 60, 0.0)
+    df["PuckLosses60"] = np.where(df["Time_on_ice"] > 0, (df["Puck_losses"] / df["Time_on_ice"]) * 60, 0.0)
+    df["NetPenalties60"] = np.where(df["Time_on_ice"] > 0, (df["Net_penalties_raw"] / df["Time_on_ice"]) * 60, 0.0)
+    
+    # Volyymitilastot (Käytetään suoraan sellaisenaan ilman /60 jakoa, kuten alkuperäisessä kaavassa)
+    df["SlotPasses"] = df["Passes_to_the_slot"] if "Passes_to_the_slot" in df.columns else 0.0
+    df["PuckBattlesWon"] = df["Puck_battles_won"] if "Puck_battles_won" in df.columns else 0.0
 
     # FILL NaN VALUES
     numeric_cols = df.select_dtypes(include=np.number).columns
@@ -105,11 +116,11 @@ def load_data():
     all_seasons = []
     seasons = sorted(df["Season"].unique())
 
-    # SINGLE SEASON ENGINE (Kausi kerrallaan, mutta alkuperäinen logiikka)
+    # =====================================================
+    # SINGLE SEASON ENGINE (Alkuperäinen matemaattinen logiikka)
+    # =====================================================
     for season in seasons:
         season_df = df[df["Season"] == season].copy()
-        
-        # Eristetään kauden joukkueet liigan keskiarvoja varten
         season_teams = teams[teams["Season"] == season]
 
         # CREATE EMPTY Z-SCORE COLUMNS
@@ -126,7 +137,7 @@ def load_data():
                     z_values = safe_zscore(values)
                     season_df.loc[pos_mask, f"{metric}_z"] = z_values
 
-        # LEAGUE AVERAGES (Alkuperäinen logiikka käytti teams-taulukkoa)
+        # LEAGUE AVERAGES
         league_gpg = season_teams["GPG"].mean()
         league_gapg = season_teams["GAPG"].mean()
 
@@ -151,11 +162,11 @@ def load_data():
             0.10 * season_df["PuckBattlesWon_z"]
         )
 
-        # TEAM-ADJUSTED WIN SHARES (Täysin alkuperäinen logiikka molemmissa)
+        # TEAM-ADJUSTED WIN SHARES (Täysin alkuperäiset korjauskertoimet)
         season_df["OWS"] = season_df["Raw_OWS"] - ((season_df["Team_Off_Strength"] - 1) * 0.50)
         season_df["DWS"] = season_df["Raw_DWS"] - ((season_df["Team_Def_Strength"] - 1) * 0.50)
 
-        # TOI STABILIZATION
+        # TOI STABILIZATION (K = 400)
         K = 400
         season_df["TOI_Factor"] = season_df["Time_on_ice"] / (season_df["Time_on_ice"] + K)
 
@@ -187,33 +198,31 @@ def load_data():
 df = load_data()
 
 # =========================================================
-# DASHBOARD UI (Alkuperäinen tyyli + Kausivalinta)
+# DASHBOARD UI
 # =========================================================
 st.title("🏒 SDHL Player Profiles - Multiseason Engine")
 
 st.markdown("""
-This dashboard includes the **fully original mathematical logic** calculated safely season-by-season:
-- Position-adjusted & Team-adjusted Win Shares (both Offensive & Defensive)
-- TOI stabilization ($K=400$) and Season-specific League Percentiles/Rankings.
+Tämä dashboard laskee pelipaikka- ja joukkuekorjatut **Win Shares (WS)** -metriikat turvallisesti **kausi kerrallaan**, suhteuttaen tilastot pelaajien peliaikaan lennossa.
 """)
 
 # FILTERS
 filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
 
 with filter_col1:
-    season_filter = st.selectbox("Select Season", sorted(df["Season"].unique(), reverse=True))
+    season_filter = st.selectbox("Valitse kausi", sorted(df["Season"].unique(), reverse=True))
 
-# Rajataan data valitulle kaudelle ennen muiden suodattimien täyttöä
+# Rajataan data valitulle kaudelle
 season_data = df[df["Season"] == season_filter]
 
 with filter_col2:
-    team_filter = st.selectbox("Select Team", ["All"] + sorted(season_data["Team"].unique().tolist()))
+    team_filter = st.selectbox("Valitse joukkue", ["All"] + sorted(season_data["Team"].unique().tolist()))
 
 with filter_col3:
-    position_filter = st.selectbox("Select Position", ["All", "F", "D"])
+    position_filter = st.selectbox("Valitse pelipaikka", ["All", "F", "D"])
 
 with filter_col4:
-    min_games = st.slider("Minimum Games Played", 1, int(season_data["Games_played"].max()), 10)
+    min_games = st.slider("Minimiottelut", 1, int(season_data["Games_played"].max()), 10)
 
 # APPLY FILTERS
 filtered_df = season_data.copy()
@@ -228,7 +237,7 @@ filtered_df = filtered_df[filtered_df["Games_played"] >= min_games]
 
 # PLAYER SELECTOR
 if not filtered_df.empty:
-    player = st.selectbox("Select Player", sorted(filtered_df["Player"].unique()))
+    player = st.selectbox("Valitse pelaaja", sorted(filtered_df["Player"].unique()))
     player_df = filtered_df[filtered_df["Player"] == player].iloc[0]
 
     # PLAYER HEADER
@@ -244,7 +253,7 @@ if not filtered_df.empty:
         st.metric("WS", f"{round(player_df['WS'],2)} (#{player_df['WS_rank']})")
 
     # PERCENTILES
-    st.subheader("Season Percentiles")
+    st.subheader("Kauden prosenttipisteet (Percentiles)")
     p1, p2, p3 = st.columns(3)
     with p1:
         st.metric("OWS Percentile", f"{round(player_df['OWS_percentile'])}%")
@@ -254,22 +263,22 @@ if not filtered_df.empty:
         st.metric("WS Percentile", f"{round(player_df['WS_percentile'])}%")
 
     # PLAYER INFORMATION
-    st.subheader("Player Information")
+    st.subheader("Pelaajan perustiedot")
     info1, info2, info3, info4 = st.columns(4)
     with info1:
-        st.write(f"**Games Played:** {player_df['Games_played']}")
+        st.write(f"**Ottelut (GP):** {player_df['Games_played']}")
     with info2:
-        st.write(f"**Time on Ice:** {round(player_df['Time_on_ice'],1)}")
+        st.write(f"**Peliaika (TOI):** {round(player_df['Time_on_ice'],1)}")
     with info3:
-        st.write(f"**Points:** {player_df['Points']}")
+        st.write(f"**Pisteet:** {player_df['Points']}")
     with info4:
         st.write(f"**Net xG:** {round(player_df['NetxG'],2)}")
 
     # ADDITIONAL STATISTICS
-    st.subheader("Additional Statistics")
+    st.subheader("Lasketut tehokkuustilastot (Per 60 / Volyymit)")
     stats_df = pd.DataFrame({
-        "Statistic": ["Goals/60", "Assists/60", "xG/60", "Takeaways/60", "Puck Losses/60", "Net Penalties/60", "Puck Battles Won", "Slot Passes"],
-        "Value": [
+        "Tilasto": ["Maalit / 60", "Syötöt / 60", "xG / 60", "Riistot / 60", "Kiekonmenetykset / 60", "Jäähytasapaino / 60", "Voitetut kamppailut", "Syötöt parhaaseen sektoriin"],
+        "Arvo": [
             round(player_df["Goals60"], 2), round(player_df["Assists60"], 2), round(player_df["xG60"], 2),
             round(player_df["Takeaways60"], 2), round(player_df["PuckLosses60"], 2), round(player_df["NetPenalties60"], 2),
             round(player_df["PuckBattlesWon"], 2), round(player_df["SlotPasses"], 2)
@@ -278,13 +287,14 @@ if not filtered_df.empty:
     st.dataframe(stats_df, use_container_width=True, hide_index=True)
 
 else:
-    st.warning("No players found matching the selected filter criteria.")
+    st.warning("Valituilla suodattimilla ei löytynyt pelaajia.")
 
 # TOP 10 WIN SHARES FOR THE SELECTED SEASON
-st.subheader(f"Top 10 Win Shares - Season {season_filter}")
-top_ws = (
-    filtered_df[["Player", "Team", "Position", "OWS", "DWS", "WS"]]
-    .sort_values("WS", ascending=False)
-    .head(10)
-)
-st.dataframe(top_ws, use_container_width=True, hide_index=True)
+st.subheader(f"Top 10 Win Shares - Kausi {season_filter}")
+if not filtered_df.empty:
+    top_ws = (
+        filtered_df[["Player", "Team", "Position", "OWS", "DWS", "WS", "WS_percentile"]]
+        .sort_values("WS", ascending=False)
+        .head(10)
+    )
+    st.dataframe(top_ws, use_container_width=True, hide_index=True)
