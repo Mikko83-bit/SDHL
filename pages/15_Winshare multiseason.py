@@ -42,7 +42,7 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # CLEAN COLUMNS
+    # CLEAN COLUMN NAMES
     # ---------------------------------------------------
 
     players.columns = (
@@ -110,12 +110,12 @@ def load_data():
     # ---------------------------------------------------
 
     df.loc[
-        df["Player"] == "Elisa Holopainen",
+        df["Player"] == "Elisa_Holopainen",
         "Position"
     ] = "F"
 
     # ---------------------------------------------------
-    # FILL NaN
+    # NUMERIC
     # ---------------------------------------------------
 
     numeric_cols = df.select_dtypes(
@@ -128,15 +128,17 @@ def load_data():
     )
 
     # ---------------------------------------------------
-    # PER 60 STATS
-    # ---------------------------------------------------
-
     # AVOID DIVISION BY ZERO
+    # ---------------------------------------------------
 
     df["Time_on_ice"] = (
         df["Time_on_ice"]
         .replace(0, np.nan)
     )
+
+    # ---------------------------------------------------
+    # CREATE PER60 STATS
+    # ---------------------------------------------------
 
     df["Goals60"] = (
         df["Goals"] /
@@ -189,7 +191,7 @@ def load_data():
     )
 
     df["NetxG"] = (
-        df["Net_xG_xG_player_on_0_opp_teams_xG"]
+        df["Net_xG_xG_player_on_-_opp._team's_xG"]
     )
 
     # ---------------------------------------------------
@@ -235,16 +237,12 @@ def load_data():
 
     for season in seasons:
 
-        # ---------------------------------------------------
-        # FILTER SEASON
-        # ---------------------------------------------------
-
         season_df = df[
             df["Season"] == season
         ].copy()
 
         # ---------------------------------------------------
-        # CREATE Z-SCORES
+        # CREATE EMPTY Z-COLUMNS
         # ---------------------------------------------------
 
         for metric in metrics:
@@ -273,7 +271,7 @@ def load_data():
                     season_df.loc[
                         pos_mask,
                         f"{metric}_z"
-                    ] = 0
+                    ] = 0.0
 
                 else:
 
@@ -282,6 +280,8 @@ def load_data():
                     z_values = np.nan_to_num(
                         z_values
                     )
+
+                    # CLIP EXTREMES
 
                     z_values = np.clip(
                         z_values,
@@ -292,7 +292,7 @@ def load_data():
                     season_df.loc[
                         pos_mask,
                         f"{metric}_z"
-                    ] = z_values
+                    ] = z_values.astype(float)
 
         # ---------------------------------------------------
         # LEAGUE AVERAGES
@@ -346,7 +346,7 @@ def load_data():
         )
 
         # ---------------------------------------------------
-        # TEAM ADJUSTMENT
+        # LIGHT TEAM ADJUSTMENT
         # ---------------------------------------------------
 
         season_df["OWS"] = (
@@ -444,7 +444,7 @@ def load_data():
         )
 
         # ---------------------------------------------------
-        # STORE
+        # STORE RESULTS
         # ---------------------------------------------------
 
         all_results.append(
@@ -452,7 +452,7 @@ def load_data():
         )
 
     # ---------------------------------------------------
-    # FINAL DF
+    # FINAL DATAFRAME
     # ---------------------------------------------------
 
     final_df = pd.concat(
@@ -463,7 +463,7 @@ def load_data():
     return final_df
 
 # ---------------------------------------------------
-# LOAD
+# LOAD DATA
 # ---------------------------------------------------
 
 df = load_data()
@@ -489,13 +489,15 @@ with c1:
 
 with c2:
 
+    available_teams = sorted(
+        df[
+            df["Season"] == season_filter
+        ]["Team"].unique()
+    )
+
     team_filter = st.selectbox(
         "Team",
-        ["All"] + sorted(
-            df[
-                df["Season"] == season_filter
-            ]["Team"].unique()
-        )
+        ["All"] + available_teams
     )
 
 with c3:
@@ -528,12 +530,12 @@ if position_filter != "All":
     ]
 
 # ---------------------------------------------------
-# TOP WS
+# TOP PLAYERS
 # ---------------------------------------------------
 
 st.subheader("Top Win Shares")
 
-top_ws = (
+top_df = (
 
     filtered_df[[
         "Player",
@@ -553,7 +555,7 @@ top_ws = (
 )
 
 st.dataframe(
-    top_ws,
+    top_df,
     use_container_width=True,
     hide_index=True
 )
@@ -583,7 +585,7 @@ st.subheader(
 )
 
 # ---------------------------------------------------
-# METRICS
+# PLAYER METRICS
 # ---------------------------------------------------
 
 m1, m2, m3 = st.columns(3)
@@ -592,14 +594,14 @@ with m1:
 
     st.metric(
         "OWS",
-        f"{round(player_df['OWS'],2)}"
+        round(player_df["OWS"], 2)
     )
 
 with m2:
 
     st.metric(
         "DWS",
-        f"{round(player_df['DWS'],2)}"
+        round(player_df["DWS"], 2)
     )
 
 with m3:
@@ -609,6 +611,15 @@ with m3:
         f"{round(player_df['WS'],2)} "
         f"(#{player_df['WS_rank']})"
     )
+
+# ---------------------------------------------------
+# PERCENTILE
+# ---------------------------------------------------
+
+st.metric(
+    "WS Percentile",
+    f"{round(player_df['WS_percentile'],1)}%"
+)
 
 # ---------------------------------------------------
 # CAREER TREND
