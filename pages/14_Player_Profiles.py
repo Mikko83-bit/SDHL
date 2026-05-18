@@ -74,7 +74,7 @@ def load_data():
     ] = "F"
 
     # ---------------------------------------------------
-    # RENAME COLUMNS
+    # RENAME IMPORTANT COLUMNS
     # ---------------------------------------------------
 
     rename_dict = {
@@ -96,7 +96,7 @@ def load_data():
     df = df.rename(columns=rename_dict)
 
     # ---------------------------------------------------
-    # FILL NaN
+    # FILL NaN VALUES
     # ---------------------------------------------------
 
     numeric_cols = df.select_dtypes(include=np.number).columns
@@ -104,7 +104,7 @@ def load_data():
     df[numeric_cols] = df[numeric_cols].fillna(0)
 
     # ---------------------------------------------------
-    # POSITION ADJUSTED Z-SCORES
+    # METRICS
     # ---------------------------------------------------
 
     metrics = [
@@ -123,12 +123,18 @@ def load_data():
 
     ]
 
-    # CREATE EMPTY COLUMNS
+    # ---------------------------------------------------
+    # CREATE EMPTY Z-SCORE COLUMNS
+    # ---------------------------------------------------
+
     for metric in metrics:
 
-        df[f"{metric}_z"] = 0
+        df[f"{metric}_z"] = 0.0
 
-    # CALCULATE POSITION-BASED Z-SCORES
+    # ---------------------------------------------------
+    # POSITION-BASED Z-SCORES
+    # ---------------------------------------------------
+
     for position in ["F", "D"]:
 
         pos_mask = df["Position"] == position
@@ -143,17 +149,15 @@ def load_data():
 
                 z_values = np.nan_to_num(z_values)
 
-                df.loc[pos_mask, f"{metric}_z"] = z_values
+                df.loc[pos_mask, f"{metric}_z"] = z_values.astype(float)
 
     # ---------------------------------------------------
     # TEAM ADJUSTMENTS
     # ---------------------------------------------------
 
-    # LEAGUE AVERAGES
     league_gpg = teams["GPG"].mean()
     league_gapg = teams["GAPG"].mean()
 
-    # TEAM STRENGTH
     df["Team_Off_Strength"] = (
         df["GPG"] / league_gpg
     )
@@ -175,10 +179,12 @@ def load_data():
 
     )
 
-    # TEAM ADJUSTED OWS
+    # TEAM ADJUSTMENT
     df["OWS"] = (
+
         df["Raw_OWS"] -
         ((df["Team_Off_Strength"] - 1) * 0.50)
+
     )
 
     # ---------------------------------------------------
@@ -195,10 +201,12 @@ def load_data():
 
     )
 
-    # TEAM ADJUSTED DWS
+    # TEAM ADJUSTMENT
     df["DWS"] = (
+
         df["Raw_DWS"] -
         ((df["Team_Def_Strength"] - 1) * 0.50)
+
     )
 
     # ---------------------------------------------------
@@ -263,6 +271,7 @@ df = load_data()
 st.title("🏒 SDHL Player Profiles")
 
 st.markdown("""
+
 This dashboard includes:
 
 - Position-adjusted Win Shares
@@ -272,6 +281,7 @@ This dashboard includes:
 - Overall Win Shares (WS)
 - Percentiles
 - League rankings
+
 """)
 
 # ---------------------------------------------------
@@ -296,7 +306,7 @@ with filter_col2:
         ["All", "F", "D"]
     )
 
-# MINIMUM GAMES
+# MINIMUM GAMES FILTER
 with filter_col3:
 
     min_games = st.slider(
@@ -415,7 +425,7 @@ with p3:
     )
 
 # ---------------------------------------------------
-# PLAYER INFO
+# PLAYER INFORMATION
 # ---------------------------------------------------
 
 st.subheader("Player Information")
@@ -451,7 +461,7 @@ with info4:
     )
 
 # ---------------------------------------------------
-# ADDITIONAL STATS
+# ADDITIONAL STATISTICS
 # ---------------------------------------------------
 
 st.subheader("Additional Statistics")
