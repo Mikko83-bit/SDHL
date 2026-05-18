@@ -26,7 +26,10 @@ FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
 @st.cache_data
 def load_data():
 
+    # ---------------------------------------------------
     # READ EXCEL
+    # ---------------------------------------------------
+
     players = pd.read_excel(FILE, sheet_name="Players")
     teams = pd.read_excel(FILE, sheet_name="Teams")
 
@@ -49,14 +52,28 @@ def load_data():
         .str.strip()
         .str.replace(" ", "_")
         .str.replace("/", "_per_")
+        .str.replace("%", "perc")
     )
 
     # REMOVE DOUBLE UNDERSCORES
+
     players.columns = players.columns.str.replace("__", "_")
     players.columns = players.columns.str.replace("__", "_")
 
     teams.columns = teams.columns.str.replace("__", "_")
     teams.columns = teams.columns.str.replace("__", "_")
+
+    # ---------------------------------------------------
+    # CREATE TEAM STATS
+    # ---------------------------------------------------
+
+    teams["GPG"] = (
+        teams["Goal_for"] / teams["GP"]
+    )
+
+    teams["GAPG"] = (
+        teams["Goal_agn"] / teams["GP"]
+    )
 
     # ---------------------------------------------------
     # MERGE
@@ -79,14 +96,17 @@ def load_data():
 
     rename_dict = {
 
+        # OFFENSE
         "Goals_per_60": "Goals60",
         "Assists_per_60": "Assists60",
         "xG_per_60": "xG60",
 
+        # DEFENSE
         "Takeaways_per_60": "Takeaways60",
         "Puck_losses_per_60": "PuckLosses60",
         "Net_penalties_per_60": "NetPenalties60",
 
+        # OTHER
         "Passes_to_the_slot": "SlotPasses",
         "Puck_battles_won": "PuckBattlesWon",
         "Net_xG": "NetxG"
@@ -149,14 +169,22 @@ def load_data():
 
                 z_values = np.nan_to_num(z_values)
 
-                df.loc[pos_mask, f"{metric}_z"] = z_values.astype(float)
+                df.loc[
+                    pos_mask,
+                    f"{metric}_z"
+                ] = z_values.astype(float)
+
+    # ---------------------------------------------------
+    # LEAGUE AVERAGES
+    # ---------------------------------------------------
+
+    league_gpg = teams["GPG"].mean()
+
+    league_gapg = teams["GAPG"].mean()
 
     # ---------------------------------------------------
     # TEAM ADJUSTMENTS
     # ---------------------------------------------------
-
-    league_gpg = teams["GPG"].mean()
-    league_gapg = teams["GAPG"].mean()
 
     df["Team_Off_Strength"] = (
         df["GPG"] / league_gpg
@@ -180,6 +208,7 @@ def load_data():
     )
 
     # TEAM ADJUSTMENT
+
     df["OWS"] = (
 
         df["Raw_OWS"] -
@@ -202,6 +231,7 @@ def load_data():
     )
 
     # TEAM ADJUSTMENT
+
     df["DWS"] = (
 
         df["Raw_DWS"] -
@@ -279,7 +309,7 @@ This dashboard includes:
 - Offensive Win Shares (OWS)
 - Defensive Win Shares (DWS)
 - Overall Win Shares (WS)
-- Percentiles
+- League percentiles
 - League rankings
 
 """)
@@ -291,6 +321,7 @@ This dashboard includes:
 filter_col1, filter_col2, filter_col3 = st.columns(3)
 
 # TEAM FILTER
+
 with filter_col1:
 
     team_filter = st.selectbox(
@@ -299,6 +330,7 @@ with filter_col1:
     )
 
 # POSITION FILTER
+
 with filter_col2:
 
     position_filter = st.selectbox(
@@ -307,6 +339,7 @@ with filter_col2:
     )
 
 # MINIMUM GAMES FILTER
+
 with filter_col3:
 
     min_games = st.slider(
