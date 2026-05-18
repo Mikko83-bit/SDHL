@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------
-# FILE NAME
+# FILE
 # ---------------------------------------------------
 
 FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
@@ -27,7 +27,7 @@ FILE = "Skaters - SDHL 2025-2026 WIN SHARE.xlsx"
 @st.cache_data
 def load_data():
 
-    # READ EXCEL FILES
+    # READ EXCEL
     players = pd.read_excel(FILE, sheet_name="Players")
     teams = pd.read_excel(FILE, sheet_name="Teams")
 
@@ -52,7 +52,7 @@ def load_data():
         .str.replace("/", "_per_")
     )
 
-    # REMOVE DOUBLE/TRIPLE UNDERSCORES
+    # REMOVE DOUBLE UNDERSCORES
     players.columns = players.columns.str.replace("__", "_")
     players.columns = players.columns.str.replace("__", "_")
 
@@ -60,10 +60,19 @@ def load_data():
     teams.columns = teams.columns.str.replace("__", "_")
 
     # ---------------------------------------------------
-    # MERGE DATA
+    # MERGE
     # ---------------------------------------------------
 
     df = players.merge(teams, on="Team")
+
+    # ---------------------------------------------------
+    # FIX PLAYER POSITIONS
+    # ---------------------------------------------------
+
+    df.loc[
+        df["Player"] == "Elisa Holopainen",
+        "Position"
+    ] = "F"
 
     # ---------------------------------------------------
     # RENAME IMPORTANT COLUMNS
@@ -123,7 +132,7 @@ def load_data():
 
             df[f"{metric}_z"] = zscore(df[metric])
 
-            # REPLACE NaN VALUES
+            # REPLACE NaN
             df[f"{metric}_z"] = (
                 df[f"{metric}_z"]
                 .replace(np.nan, 0)
@@ -181,7 +190,7 @@ def load_data():
     return df
 
 # ---------------------------------------------------
-# LOAD DATAFRAME
+# LOAD DATA
 # ---------------------------------------------------
 
 df = load_data()
@@ -193,16 +202,70 @@ df = load_data()
 st.title("🏒 SDHL Player Profiles")
 
 st.markdown("""
-
 This dashboard includes:
 
 - Offensive Win Shares (OWS)
 - Defensive Win Shares (DWS)
 - Overall Win Shares (WS)
+- Radar charts
 - Percentiles
-- Player radar charts
-
+- Team filters
+- Position filters
 """)
+
+# ---------------------------------------------------
+# FILTERS
+# ---------------------------------------------------
+
+filter_col1, filter_col2, filter_col3 = st.columns(3)
+
+# TEAM FILTER
+with filter_col1:
+
+    team_filter = st.selectbox(
+        "Select Team",
+        ["All"] + sorted(df["Team"].unique().tolist())
+    )
+
+# POSITION FILTER
+with filter_col2:
+
+    position_filter = st.selectbox(
+        "Select Position",
+        ["All", "F", "D"]
+    )
+
+# MINIMUM GAMES FILTER
+with filter_col3:
+
+    min_games = st.slider(
+        "Minimum Games Played",
+        1,
+        int(df["Games_played"].max()),
+        10
+    )
+
+# ---------------------------------------------------
+# APPLY FILTERS
+# ---------------------------------------------------
+
+filtered_df = df.copy()
+
+if team_filter != "All":
+
+    filtered_df = filtered_df[
+        filtered_df["Team"] == team_filter
+    ]
+
+if position_filter != "All":
+
+    filtered_df = filtered_df[
+        filtered_df["Position"] == position_filter
+    ]
+
+filtered_df = filtered_df[
+    filtered_df["Games_played"] >= min_games
+]
 
 # ---------------------------------------------------
 # PLAYER SELECTOR
@@ -210,17 +273,19 @@ This dashboard includes:
 
 player = st.selectbox(
     "Select Player",
-    sorted(df["Player"].unique())
+    sorted(filtered_df["Player"].unique())
 )
 
 # ---------------------------------------------------
 # PLAYER DATA
 # ---------------------------------------------------
 
-player_df = df[df["Player"] == player].iloc[0]
+player_df = filtered_df[
+    filtered_df["Player"] == player
+].iloc[0]
 
 # ---------------------------------------------------
-# HEADER
+# PLAYER HEADER
 # ---------------------------------------------------
 
 st.subheader(
@@ -275,7 +340,7 @@ with info2:
 
     st.write(
         f"**Time on Ice:** "
-        f"{player_df['Time_on_ice']}"
+        f"{round(player_df['Time_on_ice'], 1)}"
     )
 
 with info3:
@@ -313,12 +378,12 @@ radar_df = pd.DataFrame({
 
     "Value": [
 
-        player_df["Goals60"],
-        player_df["Assists60"],
-        player_df["xG60"],
-        player_df["NetxG"],
-        player_df["Takeaways60"],
-        player_df["PuckBattlesWon"]
+        player_df["Goals60_z"],
+        player_df["Assists60_z"],
+        player_df["xG60_z"],
+        player_df["NetxG_z"],
+        player_df["Takeaways60_z"],
+        player_df["PuckBattlesWon_z"]
 
     ]
 
@@ -332,6 +397,15 @@ fig = px.line_polar(
 )
 
 fig.update_traces(fill="toself")
+
+fig.update_layout(
+    polar=dict(
+        radialaxis=dict(
+            visible=True,
+            range=[-3, 3]
+        )
+    )
+)
 
 st.plotly_chart(
     fig,
@@ -417,7 +491,7 @@ st.subheader("Top 10 Win Shares")
 
 top_ws = (
 
-    df[[
+    filtered_df[[
         "Player",
         "Team",
         "Position",
