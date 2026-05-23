@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # ==================================================
 
 st.set_page_config(
-    page_title="Player Comparison",
+    page_title="Multi-Player Comparison",
     layout="wide"
 )
 
