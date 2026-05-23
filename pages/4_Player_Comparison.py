@@ -12,13 +12,13 @@ st.set_page_config(
 )
 
 # ==================================================
-# PAGE TITLE
+# TITLE
 # ==================================================
 
 st.title("🧠 Advanced Player Comparison")
 
 st.markdown(
-    "Modern analytics-based player scouting comparison."
+    "Modern analytics-based multi-player scouting comparison."
 )
 
 # ==================================================
@@ -54,17 +54,21 @@ df = pd.read_excel(
 
 df.columns = df.columns.str.strip()
 
-df["Position"] = (
-    df["Position"]
-    .astype(str)
-    .str.strip()
-)
+text_cols = [
+    "Player",
+    "Team",
+    "Position"
+]
 
-df["Team"] = (
-    df["Team"]
-    .astype(str)
-    .str.strip()
-)
+for col in text_cols:
+
+    if col in df.columns:
+
+        df[col] = (
+            df[col]
+            .astype(str)
+            .str.strip()
+        )
 
 # ==================================================
 # NUMERIC CONVERSION
@@ -79,7 +83,7 @@ df[numeric_cols] = df[
 ].round(2)
 
 # ==================================================
-# SIDEBAR
+# SIDEBAR FILTERS
 # ==================================================
 
 st.sidebar.header("Filters")
@@ -87,7 +91,9 @@ st.sidebar.header("Filters")
 # POSITION
 
 positions = sorted(
-    df["Position"].dropna().unique()
+    df["Position"]
+    .dropna()
+    .unique()
 )
 
 selected_position = st.sidebar.selectbox(
@@ -99,69 +105,81 @@ filtered_df = df[
     df["Position"] == selected_position
 ]
 
-# TEAM 1
+# TEAM FILTER
 
 teams = sorted(
-    filtered_df["Team"].dropna().unique()
+    filtered_df["Team"]
+    .dropna()
+    .unique()
 )
 
-team1 = st.sidebar.selectbox(
-    "Team 1",
-    teams
-)
-
-# TEAM 2
-
-team2 = st.sidebar.selectbox(
-    "Team 2",
+selected_teams = st.sidebar.multiselect(
+    "Teams",
     teams,
-    index=min(1, len(teams)-1)
+    default=teams
 )
 
-# PLAYER 1
+filtered_df = filtered_df[
+    filtered_df["Team"].isin(
+        selected_teams
+    )
+]
 
-players1 = sorted(
+# TOI FILTER
 
-    filtered_df[
-        filtered_df["Team"] == team1
-    ]["Player"].dropna().unique()
-
+min_toi = st.sidebar.slider(
+    "Minimum TOI",
+    min_value=0,
+    max_value=3000,
+    value=300,
+    step=50
 )
 
-player1 = st.sidebar.selectbox(
-    "Player 1",
-    players1
+if "Time on ice" in filtered_df.columns:
+
+    filtered_df = filtered_df[
+        filtered_df["Time on ice"]
+        >= min_toi
+    ]
+
+# ==================================================
+# PLAYER SELECT
+# ==================================================
+
+all_players = sorted(
+    filtered_df["Player"]
+    .dropna()
+    .unique()
 )
 
-# PLAYER 2
+selected_players = st.multiselect(
 
-players2 = sorted(
+    "Select up to 5 players",
 
-    filtered_df[
-        filtered_df["Team"] == team2
-    ]["Player"].dropna().unique()
+    options=all_players,
 
-)
+    default=all_players[:2],
 
-player2 = st.sidebar.selectbox(
-    "Player 2",
-    players2
+    max_selections=5
+
 )
 
 # ==================================================
-# PLAYER ROWS
+# COMPARISON METRICS
 # ==================================================
 
-p1 = filtered_df[
-    filtered_df["Player"] == player1
-].iloc[0]
+comparison_metrics = [
 
-p2 = filtered_df[
-    filtered_df["Player"] == player2
-].iloc[0]
+    ("Points/60", "Points/60"),
+    ("Shots/60", "Shots/60"),
+    ("xG/60", "xG (Expected goals)/60"),
+    ("Scoring Chances/60", "Scoring chances - total/60"),
+    ("Slot Passes/60", "Passes to the slot/60")
+
+]
 
 # ==================================================
-# CATEGORY SCORES
+# CATEGORY RADAR
 # ==================================================
 
 radar_metrics = [
@@ -190,364 +208,426 @@ radar_labels = [
 # RADAR CHART
 # ==================================================
 
-st.subheader("📊 Player Style Radar")
+if len(selected_players) >= 2:
 
-fig = go.Figure()
+    st.markdown("---")
 
-# PLAYER 1
+    st.subheader("📊 Player Style Radar")
 
-fig.add_trace(
+    radar_colors = [
 
-    go.Scatterpolar(
+        "#00E5FF",
+        "#FF5252",
+        "#22C55E",
+        "#FACC15",
+        "#A855F7"
 
-        r=[p1[m] for m in radar_metrics],
+    ]
 
-        theta=radar_labels,
+    fig = go.Figure()
 
-        fill='toself',
+    for idx, player in enumerate(selected_players):
 
-        name=player1,
+        player_row = filtered_df[
+            filtered_df["Player"] == player
+        ].iloc[0]
 
-        line=dict(
-            color='#00E5FF',
-            width=4
-        ),
+        radar_values = []
 
-        fillcolor='rgba(0,229,255,0.25)'
+        for metric in radar_metrics:
 
-    )
+            if metric in filtered_df.columns:
 
-)
+                radar_values.append(
+                    player_row[metric]
+                )
 
-# PLAYER 2
+            else:
 
-fig.add_trace(
+                radar_values.append(0)
 
-    go.Scatterpolar(
+        fig.add_trace(
 
-        r=[p2[m] for m in radar_metrics],
+            go.Scatterpolar(
 
-        theta=radar_labels,
+                r=radar_values,
 
-        fill='toself',
+                theta=radar_labels,
 
-        name=player2,
+                fill='toself',
 
-        line=dict(
-            color='#FF5252',
-            width=4
-        ),
+                name=player,
 
-        fillcolor='rgba(255,82,82,0.25)'
+                line=dict(
+                    color=radar_colors[idx],
+                    width=3
+                ),
 
-    )
+                fillcolor=f'rgba(255,255,255,0.05)'
 
-)
-
-# ==================================================
-# LAYOUT
-# ==================================================
-
-fig.update_layout(
-
-    template="plotly_dark",
-
-    polar=dict(
-
-        radialaxis=dict(
-
-            visible=True,
-
-            range=[0, 100],
-
-            gridcolor="gray",
-
-            linecolor="gray"
+            )
 
         )
 
-    ),
+    fig.update_layout(
 
-    paper_bgcolor="#111111",
+        template="plotly_dark",
 
-    plot_bgcolor="#111111",
+        polar=dict(
 
-    font=dict(
-        color="white"
-    ),
+            radialaxis=dict(
 
-    height=750
+                visible=True,
 
-)
+                range=[0, 100]
 
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
+            )
+
+        ),
+
+        paper_bgcolor="#111111",
+
+        plot_bgcolor="#111111",
+
+        font=dict(
+            color="white"
+        ),
+
+        height=700
+
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
 
 # ==================================================
 # PLAYER HEADER CARDS
 # ==================================================
 
-st.markdown("---")
+if len(selected_players) >= 1:
 
-card1, card2 = st.columns(2)
+    st.markdown("---")
 
-# ==================================================
-# PLAYER 1
-# ==================================================
+    st.subheader("👤 Player Overview")
 
-with card1:
-
-    if p1["Team"] in team_logos:
-
-        st.image(
-            team_logos[p1["Team"]],
-            width=100
-        )
-
-    st.markdown(
-        f"## {player1}"
+    cols = st.columns(
+        len(selected_players)
     )
 
-    st.markdown(
-        f"### {p1['Team']} | {p1['Position']}"
+    for idx, player in enumerate(selected_players):
+
+        row = filtered_df[
+            filtered_df["Player"] == player
+        ].iloc[0]
+
+        with cols[idx]:
+
+            if row["Team"] in team_logos:
+
+                st.image(
+                    team_logos[row["Team"]],
+                    width=75
+                )
+
+            st.markdown(
+                f"### {player}"
+            )
+
+            st.markdown(
+                f"{row['Team']} | {row['Position']}"
+            )
+
+            if "Overall Score" in filtered_df.columns:
+
+                st.metric(
+                    "Overall Score",
+                    round(
+                        row["Overall Score"],
+                        1
+                    )
+                )
+
+            if (
+                "Overall Score Percentile"
+                in filtered_df.columns
+            ):
+
+                st.metric(
+                    "League Percentile",
+                    round(
+                        row[
+                            "Overall Score Percentile"
+                        ]
+                    )
+                )
+
+# ==================================================
+# MULTI PLAYER COMPARISON
+# ==================================================
+
+if len(selected_players) >= 2:
+
+    st.markdown("---")
+
+    st.subheader("📈 Per/60 Comparison")
+
+    comparison_rows = []
+
+    for metric_label, metric_col in comparison_metrics:
+
+        if metric_col not in filtered_df.columns:
+
+            continue
+
+        row_data = {}
+
+        row_data["Metric"] = metric_label
+
+        metric_values = []
+
+        for player in selected_players:
+
+            player_row = filtered_df[
+                filtered_df["Player"] == player
+            ].iloc[0]
+
+            value = round(
+                float(player_row[metric_col]),
+                2
+            )
+
+            metric_values.append(value)
+
+            row_data[player] = value
+
+        max_value = max(metric_values)
+
+        leader = selected_players[
+            metric_values.index(max_value)
+        ]
+
+        row_data["Leader"] = leader
+
+        comparison_rows.append(
+            row_data
+        )
+
+    comparison_df = pd.DataFrame(
+        comparison_rows
     )
-
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-
-        st.metric(
-            "Overall Score",
-            round(p1["Overall Score"],1)
-        )
-
-    with c2:
-
-        st.metric(
-            "League Percentile",
-            round(p1["Overall Score Percentile"])
-        )
-
-    with c3:
-
-        st.metric(
-            "TOI",
-            round(p1["Time on ice"],1)
-        )
-
-# ==================================================
-# PLAYER 2
-# ==================================================
-
-with card2:
-
-    if p2["Team"] in team_logos:
-
-        st.image(
-            team_logos[p2["Team"]],
-            width=100
-        )
-
-    st.markdown(
-        f"## {player2}"
-    )
-
-    st.markdown(
-        f"### {p2['Team']} | {p2['Position']}"
-    )
-
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-
-        st.metric(
-            "Overall Score",
-            round(p2["Overall Score"],1)
-        )
-
-    with c2:
-
-        st.metric(
-            "League Percentile",
-            round(p2["Overall Score Percentile"])
-        )
-
-    with c3:
-
-        st.metric(
-            "TOI",
-            round(p2["Time on ice"],1)
-        )
-
-# ==================================================
-# LEAGUE RANK FUNCTION
-# ==================================================
-
-def get_rank(player_name, metric):
-
-    temp_df = filtered_df.sort_values(
-        by=metric,
-        ascending=False
-    ).reset_index(drop=True)
-
-    rank = temp_df[
-        temp_df["Player"] == player_name
-    ].index[0] + 1
-
-    return rank
-
-# ==================================================
-# COMPARISON METRICS
-# ==================================================
-
-comparison_metrics = [
-
-    ("Goals/60", "Goals/60"),
-    ("Assists/60", "Assists/60"),
-    ("xG/60", "xG (Expected goals)/60"),
-    ("Shots/60", "Shots/60"),
-    ("Entries Carry/60", "Entries via stickhandling/60"),
-    ("Entries Pass/60", "Entries via pass/60"),
-    ("Breakouts/60", "Breakouts/60"),
-    ("Slot Passes/60", "Passes to the slot/60"),
-    ("Pre-Shot Passes/60", "Pre-shots passes/60"),
-    ("Puck Touches/60", "Puck touches/60"),
-    ("Takeaways/60", "Takeaways/60"),
-    ("Net xG", "Net xG (xG player on - opp. team's xG)")
-
-]
-
-# ==================================================
-# COMPARISON TABLE
-# ==================================================
-
-st.markdown("---")
-
-st.subheader("📈 Advanced Comparison")
-
-for metric_name, col_name in comparison_metrics:
-
-    value1 = round(float(p1[col_name]),2)
-    value2 = round(float(p2[col_name]),2)
-
-    rank1 = get_rank(player1, col_name)
-    rank2 = get_rank(player2, col_name)
-
-    percentile_col = f"{col_name} Percentile"
-
-    percentile1 = 0
-    percentile2 = 0
-
-    if percentile_col in df.columns:
-
-        percentile1 = round(
-            float(p1[percentile_col])
-        )
-
-        percentile2 = round(
-            float(p2[percentile_col])
-        )
-
-    # COLORS
-
-    if value1 > value2:
-
-        color1 = "#16A34A"
-        color2 = "#DC2626"
-
-    elif value2 > value1:
-
-        color1 = "#DC2626"
-        color2 = "#16A34A"
-
-    else:
-
-        color1 = "#374151"
-        color2 = "#374151"
-
-    c1, c2, c3 = st.columns([1.2,2,2])
 
     # ==================================================
-    # METRIC
+    # HIGHLIGHT FUNCTION
     # ==================================================
 
-    with c1:
+    def highlight_leader(row):
+
+        styles = []
+
+        leader = row["Leader"]
+
+        for col in comparison_df.columns:
+
+            if col == "Leader":
+
+                styles.append(
+                    "background-color:#111827;color:#111827"
+                )
+
+            elif col == "Metric":
+
+                styles.append(
+                    "background-color:#0F172A;color:white;font-weight:bold"
+                )
+
+            elif col == leader:
+
+                styles.append(
+                    "background-color:#16A34A;color:white;font-weight:bold"
+                )
+
+            elif col in selected_players:
+
+                styles.append(
+                    "background-color:#7F1D1D;color:white"
+                )
+
+            else:
+
+                styles.append("")
+
+        return styles
+
+    styled_df = comparison_df.style.apply(
+        highlight_leader,
+        axis=1
+    )
+
+    st.dataframe(
+
+        styled_df,
+
+        use_container_width=True,
+
+        hide_index=True,
+
+        height=400
+
+    )
+
+# ==================================================
+# STYLE NOTES
+# ==================================================
+
+if len(selected_players) >= 1:
+
+    st.markdown("---")
+
+    st.subheader("🧠 Style Notes")
+
+    for player in selected_players:
+
+        row = filtered_df[
+            filtered_df["Player"] == player
+        ].iloc[0]
+
+        notes = []
+
+        # SHOOTER
+
+        if (
+            "Shots/60" in filtered_df.columns
+            and
+            row["Shots/60"]
+            >= filtered_df[
+                "Shots/60"
+            ].quantile(0.75)
+        ):
+
+            notes.append(
+                "High-volume shooter"
+            )
+
+        # PLAYMAKER
+
+        if (
+            "Passes to the slot/60"
+            in filtered_df.columns
+            and
+            row[
+                "Passes to the slot/60"
+            ]
+            >= filtered_df[
+                "Passes to the slot/60"
+            ].quantile(0.75)
+        ):
+
+            notes.append(
+                "Strong playmaker"
+            )
+
+        # xG
+
+        if (
+            "xG (Expected goals)/60"
+            in filtered_df.columns
+            and
+            row[
+                "xG (Expected goals)/60"
+            ]
+            >= filtered_df[
+                "xG (Expected goals)/60"
+            ].quantile(0.75)
+        ):
+
+            notes.append(
+                "Creates dangerous chances"
+            )
+
+        # SCORING CHANCES
+
+        if (
+            "Scoring chances - total/60"
+            in filtered_df.columns
+            and
+            row[
+                "Scoring chances - total/60"
+            ]
+            >= filtered_df[
+                "Scoring chances - total/60"
+            ].quantile(0.75)
+        ):
+
+            notes.append(
+                "Constant offensive pressure"
+            )
+
+        # TRANSITION
+
+        if (
+            "Transition Score"
+            in filtered_df.columns
+            and
+            row["Transition Score"]
+            >= filtered_df[
+                "Transition Score"
+            ].quantile(0.75)
+        ):
+
+            notes.append(
+                "Excellent transition player"
+            )
+
+        # IMPACT
+
+        if (
+            "Impact Score"
+            in filtered_df.columns
+            and
+            row["Impact Score"]
+            >= filtered_df[
+                "Impact Score"
+            ].quantile(0.75)
+        ):
+
+            notes.append(
+                "Drives team impact"
+            )
+
+        if len(notes) == 0:
+
+            notes.append(
+                "Balanced player profile"
+            )
 
         st.markdown(
 
             f"""
 <div style="
-background:#0F172A;
-border-radius:12px;
-height:110px;
-display:flex;
-justify-content:center;
-align-items:center;
-font-size:18px;
-font-weight:700;
-color:white;
-margin-bottom:10px;
-text-align:center;
-padding:8px;
-">
-{metric_name}
-</div>
-""",
-
-            unsafe_allow_html=True
-
-        )
-
-    # ==================================================
-    # PLAYER 1
-    # ==================================================
-
-    with c2:
-
-        st.markdown(
-
-            f"""
-<div style="
-background:{color1};
-border-radius:12px;
-padding:12px;
-height:110px;
-margin-bottom:10px;
+background:#111827;
+padding:18px;
+border-radius:14px;
+margin-bottom:14px;
+border-left:6px solid #00E5FF;
 ">
 
 <div style="
-font-size:13px;
-color:white;
-font-weight:700;
-">
-{player1}
-</div>
-
-<div style="
-font-size:30px;
+font-size:24px;
 font-weight:800;
 color:white;
-line-height:1;
-margin-top:6px;
 ">
-{value1}
+{player}
 </div>
 
 <div style="
-font-size:12px;
-color:white;
-margin-top:6px;
+font-size:14px;
+color:#D1D5DB;
+margin-top:10px;
+line-height:1.8;
 ">
-{percentile1}th percentile
-</div>
-
-<div style="
-font-size:12px;
-color:white;
-">
-#{rank1} among {selected_position}
+{' | '.join(notes)}
 </div>
 
 </div>
@@ -557,59 +637,58 @@ color:white;
 
         )
 
-    # ==================================================
-    # PLAYER 2
-    # ==================================================
+# ==================================================
+# RAW TABLE
+# ==================================================
 
-    with c3:
+if len(selected_players) >= 1:
 
-        st.markdown(
+    st.markdown("---")
 
-            f"""
-<div style="
-background:{color2};
-border-radius:12px;
-padding:12px;
-height:110px;
-margin-bottom:10px;
-">
+    st.subheader("📋 Full Player Data")
 
-<div style="
-font-size:13px;
-color:white;
-font-weight:700;
-">
-{player2}
-</div>
+    raw_metrics = [
 
-<div style="
-font-size:30px;
-font-weight:800;
-color:white;
-line-height:1;
-margin-top:6px;
-">
-{value2}
-</div>
+        "Player",
+        "Team",
+        "Position",
 
-<div style="
-font-size:12px;
-color:white;
-margin-top:6px;
-">
-{percentile2}th percentile
-</div>
+        "Points/60",
+        "Shots/60",
+        "xG (Expected goals)/60",
 
-<div style="
-font-size:12px;
-color:white;
-">
-#{rank2} among {selected_position}
-</div>
+        "Scoring chances - total/60",
 
-</div>
-""",
+        "Passes to the slot/60",
 
-            unsafe_allow_html=True
+        "Transition Score",
+        "Impact Score",
+        "Overall Score"
 
+    ]
+
+    raw_metrics = [
+
+        col for col in raw_metrics
+
+        if col in filtered_df.columns
+
+    ]
+
+    raw_df = filtered_df[
+        filtered_df["Player"].isin(
+            selected_players
         )
+    ][raw_metrics]
+
+    st.dataframe(
+
+        raw_df,
+
+        use_container_width=True,
+
+        hide_index=True,
+
+        height=350
+
+    )
