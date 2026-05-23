@@ -15,7 +15,7 @@ st.set_page_config(
 # TITLE
 # ==================================================
 
-st.title("📊 Advanced Player Comparison")
+st.title("📊 Multi Player Comparison")
 
 st.markdown(
     "Modern scouting comparison tool with per/60 analytics."
