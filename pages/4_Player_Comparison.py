@@ -15,30 +15,11 @@ st.set_page_config(
 # TITLE
 # ==================================================
 
-st.title("🧠 Advanced Player Comparison")
+st.title("📊 Advanced Player Comparison")
 
 st.markdown(
-    "Modern analytics-based multi-player scouting comparison."
+    "Modern scouting comparison tool with per/60 analytics."
 )
-
-# ==================================================
-# TEAM LOGOS
-# ==================================================
-
-team_logos = {
-
-    "Brynas": "images/Brynas.png",
-    "Djurgarden": "images/Djurgarden.png",
-    "Farjestad": "images/Farjestad.png",
-    "Frolunda": "images/Frolunda.png",
-    "HV71": "images/HV71.png",
-    "Linkoping": "images/Linkoping.png",
-    "Lulea/MSSK": "images/Lulea.png",
-    "MODO": "images/MODO.png",
-    "SDE HF": "images/SDE HF.png",
-    "Skelleftea": "images/Skelleftea AIK.png"
-
-}
 
 # ==================================================
 # LOAD DATA
@@ -71,7 +52,7 @@ for col in text_cols:
         )
 
 # ==================================================
-# NUMERIC CONVERSION
+# NUMERIC ROUNDING
 # ==================================================
 
 numeric_cols = df.select_dtypes(
@@ -88,7 +69,7 @@ df[numeric_cols] = df[
 
 st.sidebar.header("Filters")
 
-# POSITION
+# POSITION FILTER
 
 positions = sorted(
     df["Position"]
@@ -165,7 +146,7 @@ selected_players = st.multiselect(
 )
 
 # ==================================================
-# COMPARISON METRICS
+# METRICS
 # ==================================================
 
 comparison_metrics = [
@@ -179,7 +160,7 @@ comparison_metrics = [
 ]
 
 # ==================================================
-# CATEGORY RADAR
+# RADAR METRICS
 # ==================================================
 
 radar_metrics = [
@@ -212,14 +193,14 @@ if len(selected_players) >= 2:
 
     st.markdown("---")
 
-    st.subheader("📊 Player Style Radar")
+    st.subheader("🕸️ Style Radar")
 
     radar_colors = [
 
         "#00E5FF",
-        "#FF5252",
         "#22C55E",
         "#FACC15",
+        "#EF4444",
         "#A855F7"
 
     ]
@@ -232,25 +213,25 @@ if len(selected_players) >= 2:
             filtered_df["Player"] == player
         ].iloc[0]
 
-        radar_values = []
+        values = []
 
         for metric in radar_metrics:
 
             if metric in filtered_df.columns:
 
-                radar_values.append(
+                values.append(
                     player_row[metric]
                 )
 
             else:
 
-                radar_values.append(0)
+                values.append(0)
 
         fig.add_trace(
 
             go.Scatterpolar(
 
-                r=radar_values,
+                r=values,
 
                 theta=radar_labels,
 
@@ -259,11 +240,11 @@ if len(selected_players) >= 2:
                 name=player,
 
                 line=dict(
-                    color=radar_colors[idx],
-                    width=3
+                    width=3,
+                    color=radar_colors[idx]
                 ),
 
-                fillcolor=f'rgba(255,255,255,0.05)'
+                fillcolor='rgba(255,255,255,0.04)'
 
             )
 
@@ -272,6 +253,14 @@ if len(selected_players) >= 2:
     fig.update_layout(
 
         template="plotly_dark",
+
+        paper_bgcolor="#0B1120",
+
+        plot_bgcolor="#0B1120",
+
+        font=dict(
+            color="white"
+        ),
 
         polar=dict(
 
@@ -285,15 +274,7 @@ if len(selected_players) >= 2:
 
         ),
 
-        paper_bgcolor="#111111",
-
-        plot_bgcolor="#111111",
-
-        font=dict(
-            color="white"
-        ),
-
-        height=700
+        height=650
 
     )
 
@@ -303,7 +284,7 @@ if len(selected_players) >= 2:
     )
 
 # ==================================================
-# PLAYER HEADER CARDS
+# PLAYER HEADER
 # ==================================================
 
 if len(selected_players) >= 1:
@@ -324,47 +305,60 @@ if len(selected_players) >= 1:
 
         with cols[idx]:
 
-            if row["Team"] in team_logos:
-
-                st.image(
-                    team_logos[row["Team"]],
-                    width=75
-                )
-
             st.markdown(
-                f"### {player}"
+
+                f"""
+<div style="
+background:#111827;
+padding:18px;
+border-radius:16px;
+text-align:center;
+">
+
+<div style="
+font-size:24px;
+font-weight:800;
+color:white;
+">
+{player}
+</div>
+
+<div style="
+font-size:14px;
+color:#CBD5E1;
+margin-top:4px;
+">
+{row['Team']} | {row['Position']}
+</div>
+
+<div style="
+font-size:40px;
+font-weight:900;
+color:#00E5FF;
+margin-top:16px;
+line-height:1;
+">
+{round(row['Overall Score'],1)}
+</div>
+
+<div style="
+font-size:13px;
+font-weight:700;
+color:white;
+margin-top:4px;
+">
+Overall Score
+</div>
+
+</div>
+""",
+
+                unsafe_allow_html=True
+
             )
-
-            st.markdown(
-                f"{row['Team']} | {row['Position']}"
-            )
-
-            if "Overall Score" in filtered_df.columns:
-
-                st.metric(
-                    "Overall Score",
-                    round(
-                        row["Overall Score"],
-                        1
-                    )
-                )
-
-            if (
-                "Overall Score Percentile"
-                in filtered_df.columns
-            ):
-
-                st.metric(
-                    "League Percentile",
-                    round(
-                        row[
-                            "Overall Score Percentile"
-                        ]
-                    )
-                )
 
 # ==================================================
-# MULTI PLAYER COMPARISON
+# COMPARISON TABLE
 # ==================================================
 
 if len(selected_players) >= 2:
@@ -394,8 +388,13 @@ if len(selected_players) >= 2:
             ].iloc[0]
 
             value = round(
-                float(player_row[metric_col]),
-                2
+
+                float(
+                    player_row[metric_col]
+                ),
+
+                1
+
             )
 
             metric_values.append(value)
@@ -418,8 +417,10 @@ if len(selected_players) >= 2:
         comparison_rows
     )
 
+    comparison_df = comparison_df.fillna("")
+
     # ==================================================
-    # HIGHLIGHT FUNCTION
+    # STYLE FUNCTION
     # ==================================================
 
     def highlight_leader(row):
@@ -433,25 +434,25 @@ if len(selected_players) >= 2:
             if col == "Leader":
 
                 styles.append(
-                    "background-color:#111827;color:#111827"
+                    "background-color:#0B1120;color:#0B1120"
                 )
 
             elif col == "Metric":
 
                 styles.append(
-                    "background-color:#0F172A;color:white;font-weight:bold"
+                    "background-color:#020617;color:white;font-weight:700"
                 )
 
             elif col == leader:
 
                 styles.append(
-                    "background-color:#16A34A;color:white;font-weight:bold"
+                    "background-color:#16A34A;color:white;font-weight:800"
                 )
 
             elif col in selected_players:
 
                 styles.append(
-                    "background-color:#7F1D1D;color:white"
+                    "background-color:#1E293B;color:#CBD5E1"
                 )
 
             else:
@@ -473,7 +474,7 @@ if len(selected_players) >= 2:
 
         hide_index=True,
 
-        height=400
+        height=230
 
     )
 
@@ -546,31 +547,15 @@ if len(selected_players) >= 1:
                 "Creates dangerous chances"
             )
 
-        # SCORING CHANCES
-
-        if (
-            "Scoring chances - total/60"
-            in filtered_df.columns
-            and
-            row[
-                "Scoring chances - total/60"
-            ]
-            >= filtered_df[
-                "Scoring chances - total/60"
-            ].quantile(0.75)
-        ):
-
-            notes.append(
-                "Constant offensive pressure"
-            )
-
         # TRANSITION
 
         if (
             "Transition Score"
             in filtered_df.columns
             and
-            row["Transition Score"]
+            row[
+                "Transition Score"
+            ]
             >= filtered_df[
                 "Transition Score"
             ].quantile(0.75)
@@ -586,7 +571,9 @@ if len(selected_players) >= 1:
             "Impact Score"
             in filtered_df.columns
             and
-            row["Impact Score"]
+            row[
+                "Impact Score"
+            ]
             >= filtered_df[
                 "Impact Score"
             ].quantile(0.75)
@@ -608,13 +595,13 @@ if len(selected_players) >= 1:
 <div style="
 background:#111827;
 padding:18px;
-border-radius:14px;
+border-radius:16px;
 margin-bottom:14px;
 border-left:6px solid #00E5FF;
 ">
 
 <div style="
-font-size:24px;
+font-size:22px;
 font-weight:800;
 color:white;
 ">
@@ -623,7 +610,7 @@ color:white;
 
 <div style="
 font-size:14px;
-color:#D1D5DB;
+color:#CBD5E1;
 margin-top:10px;
 line-height:1.8;
 ">
@@ -638,14 +625,14 @@ line-height:1.8;
         )
 
 # ==================================================
-# RAW TABLE
+# RAW DATA
 # ==================================================
 
 if len(selected_players) >= 1:
 
     st.markdown("---")
 
-    st.subheader("📋 Full Player Data")
+    st.subheader("📋 Full Comparison Data")
 
     raw_metrics = [
 
@@ -681,6 +668,8 @@ if len(selected_players) >= 1:
         )
     ][raw_metrics]
 
+    raw_df = raw_df.round(1)
+
     st.dataframe(
 
         raw_df,
@@ -689,6 +678,6 @@ if len(selected_players) >= 1:
 
         hide_index=True,
 
-        height=350
+        height=320
 
     )
