@@ -411,4 +411,69 @@ with info1:
 with info2:
     st.write(
         f"**Time on Ice:** "
-        f"{round(player_df
+        f"{round(player_df['Time_on_ice'], 1)}"
+    )
+with info3:
+    st.write(
+        f"**Points:** "
+        f"{player_df['Points']}"
+    )
+with info4:
+    st.write(
+        f"**Net xG:** "
+        f"{round(player_df['NetxG'], 2)}"
+    )
+
+# ---------------------------------------------------
+# ADDITIONAL STATISTICS
+# ---------------------------------------------------
+st.subheader("Additional Statistics")
+stats_df = pd.DataFrame({
+    "Statistic": [
+        "Goals/60",
+        "Assists/60",
+        "xG/60",
+        "Takeaways/60",
+        "Puck Losses/60",
+        "Net Penalties/60",
+        "Puck Battles Won",
+        "Slot Passes"
+    ],
+    "Value": [
+        round(player_df["Goals60"], 2),
+        round(player_df["Assists60"], 2),
+        round(player_df["xG60"], 2),
+        round(player_df["Takeaways60"], 2),
+        round(player_df["PuckLosses60"], 2),
+        round(player_df["NetPenalties60"], 2),
+        round(player_df["PuckBattlesWon"], 2),
+        round(player_df["SlotPasses"], 2)
+    ]
+})
+st.dataframe(
+    stats_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+# ---------------------------------------------------
+# TOP 10 WIN SHARES
+# ---------------------------------------------------
+st.subheader("Top 10 Win Shares")
+top_ws = (
+    filtered_df[[
+        "Player",
+        "Team",
+        "Position",
+        "OWS",
+        "DWS",
+        "WS"
+    ]]
+    .sort_values("WS", ascending=False)
+    .head(10)
+)
+st.dataframe(
+    top_ws,
+    use_container_width=True,
+    hide_index=True
+)
