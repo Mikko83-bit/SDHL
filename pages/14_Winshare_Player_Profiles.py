@@ -477,3 +477,27 @@ st.dataframe(
     use_container_width=True,
     hide_index=True
 )
+from io import BytesIO
+
+st.markdown("---")
+st.subheader("📥 Download Data")
+
+buffer = BytesIO()
+
+with pd.ExcelWriter(
+    buffer,
+    engine="openpyxl"
+) as writer:
+
+    filtered_df.to_excel(
+        writer,
+        sheet_name="Player Profiles",
+        index=False
+    )
+
+st.download_button(
+    "📥 Download Excel",
+    data=buffer.getvalue(),
+    file_name="SDHL_Player_Profiles.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
